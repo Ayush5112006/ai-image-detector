@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChitraVision AI - Mobile App UI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .phone-frame {
+            background: white;
+            border-radius: 40px;
+            border: 8px solid #333;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            min-height: 800px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .status-bar {
+            background: #007AFF;
+            color: white;
+            padding: 8px 16px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .screen {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: white;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .screen::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 3px;
+        }
+
+        .bottom-nav {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+            padding: 8px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 10px;
+            color: #999;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #007AFF;
+        }
+
+        .nav-item i {
+            font-size: 20px;
+        }
+
+        /* LOGIN SCREEN */
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            font-size: 14px;
+            color: #999;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input {
+            padding: 12px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .btn {
+            padding: 14px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0051d5;
+        }
+
+        .btn-secondary {
+            background: #f0f2f5;
+            color: #007AFF;
+            border: 2px solid #007AFF;
+        }
+
+        .btn-secondary:hover {
+            background: #e8eaed;
+        }
+
+        .form-footer {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .form-footer a {
+            color: #007AFF;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* HOME SCREEN */
+        .home-hero {
+            background: linear-gradient(135deg, #007AFF 0%, #0051d5 100%);
+            border-radius: 20px;
+            padding: 30px 20px;
+            color: white;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .hero-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 12px;
+        }
+
+        .hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .hero-desc {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .hero-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            color: #007AFF;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-weight: 600;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hero-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            letter-spacing: 0.5px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .model-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-top: 4px solid #007AFF;
+        }
+
+        .model-card:hover {
+            box-shadow: 0 4px 12px rgba(0,122,255,0.1);
+            border-color: #007AFF;
+        }
+
+        .model-number {
+            font-size: 12px;
+            color: #007AFF;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .model-icon {
+            font-size: 24px;
+            color: #007AFF;
+            margin-bottom: 8px;
+        }
+
+        .model-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .model-desc {
+            font-size: 11px;
+            color: #999;
+            line-height: 1.4;
+        }
+
+        /* HISTORY SCREEN */
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0f2f5;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+
+        .search-box input {
+            border: none;
+            background: none;
+            font-size: 14px;
+            flex: 1;
+            font-family: inherit;
+        }
+
+        .search-box input:focus {
+            outline: none;
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+        }
+
+        .filter-chips::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .chip {
+            white-space: nowrap;
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .chip.active {
+            background: #007AFF;
+            color: white;
+            border-color: #007AFF;
+        }
+
+        .scan-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .scan-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .scan-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f2f5;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .scan-info {
+            flex: 1;
+        }
+
+        .scan-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .scan-meta {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .scan-time {
+            font-size: 11px;
+            color: #bbb;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            color: #ddd;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .empty-desc {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* PROFILE SCREEN */
+        .profile-header {
+            background: linear-gradient(135deg, #007AFF 0%, #0051d5 100%);
+            border-radius: 20px;
+            padding: 30px 20px;
+            color: white;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 auto 12px;
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .profile-email {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .stats-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            text-align: center;
+        }
+
+        .stat-item {
+            border-right: 1px solid #e0e0e0;
+        }
+
+        .stat-item:last-child {
+            border-right: none;
+        }
+
+        .stat-num {
+            font-size: 20px;
+            font-weight: 700;
+            color: #007AFF;
+            display: block;
+        }
+
+        .stat-name {
+            font-size: 10px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .level-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .level-info {
+            flex: 1;
+        }
+
+        .level-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .level-progress {
+            font-size: 12px;
+            color: #007AFF;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .setting-section {
+            margin-bottom: 20px;
+        }
+
+        .setting-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .setting-item:hover {
+            background: #f9f9f9;
+        }
+
+        .setting-content {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .setting-icon {
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f2f5;
+            border-radius: 8px;
+            color: #007AFF;
+            flex-shrink: 0;
+        }
+
+        .setting-text {
+            flex: 1;
+        }
+
+        .setting-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .setting-desc {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .setting-arrow {
+            color: #bbb;
+            font-size: 16px;
+        }
+
+        .btn-logout {
+            background: white;
+            border: 1px solid #ff3b30;
+            color: #ff3b30;
+        }
+
+        .btn-logout:hover {
+            background: #fff5f5;
+        }
+
+        /* MODEL SELECTION SCREEN */
+        .model-list-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+        }
+
+        .model-list-item:hover {
+            box-shadow: 0 4px 12px rgba(0,122,255,0.1);
+            border-color: #007AFF;
+        }
+
+        .model-list-icon {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f2f5;
+            border-radius: 8px;
+            font-size: 24px;
+            color: #007AFF;
+            flex-shrink: 0;
+        }
+
+        .model-list-content {
+            flex: 1;
+        }
+
+        .model-list-num {
+            font-size: 10px;
+            color: #007AFF;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .model-list-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 4px;
+        }
+
+        .model-list-desc {
+            font-size: 12px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .model-list-arrow {
+            font-size: 18px;
+            color: #bbb;
+        }
+
+        /* HOW IT WORKS SCREEN */
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: #f0f2f5;
+        }
+
+        .howitworks-header {
+            background: linear-gradient(135deg, #007AFF 0%, #0051d5 100%);
+            border-radius: 20px;
+            padding: 30px 20px;
+            color: white;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .howitworks-badge {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            font-size: 24px;
+            margin: 0 auto 12px;
+        }
+
+        .howitworks-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .howitworks-version {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .model-detail {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .model-detail-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: #007AFF;
+            color: white;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        .model-detail-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .model-detail-desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tech-tag {
+            display: inline-block;
+            background: #f0f2f5;
+            color: #007AFF;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* REGISTRATION SCREEN */
+        .register-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .register-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .register-header p {
+            font-size: 13px;
+            color: #999;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="phone-frame">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span><i class="fas fa-signal"></i> <i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span>
+            </div>
+
+            <!-- LOGIN SCREEN -->
+            <div class="screen active" id="login">
+                <div class="login-container">
+                    <div class="login-header">
+                        <h1>ChitraVision</h1>
+                        <p>Detect Deepfakes in Seconds</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" placeholder="your@email.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" placeholder="••••••••">
+                    </div>
+
+                    <button class="btn btn-primary" onclick="goToHome()">Sign In</button>
+
+                    <div class="form-footer">
+                        Don't have an account? <a href="#" onclick="goToRegister(); return false;">Sign Up</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REGISTRATION SCREEN -->
+            <div class="screen" id="register">
+                <div class="register-container">
+                    <div class="register-header">
+                        <h1>Create Account</h1>
+                        <p>Join millions protecting themselves from deepfakes</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" placeholder="Your full name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" placeholder="your@email.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" placeholder="••••••••">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" placeholder="••••••••">
+                    </div>
+
+                    <button class="btn btn-primary" onclick="goToHome()">Create Account</button>
+
+                    <div class="form-footer">
+                        Already have an account? <a href="#" onclick="goToLogin(); return false;">Sign In</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HOME SCREEN -->
+            <div class="screen" id="home">
+                <div style="flex: 1; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <div>
+                            <h2 style="font-size: 18px; font-weight: 700; color: #333; margin-bottom: 4px;">Hi, Dsa</h2>
+                            <p style="font-size: 13px; color: #999;">Let's detect some deepfakes</p>
+                        </div>
+                        <div style="width: 40px; height: 40px; background: #e8f0ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                            <i class="fas fa-user" style="color: #007AFF; font-size: 18px;"></i>
+                        </div>
+                    </div>
+
+                    <div class="home-hero">
+                        <div class="hero-label">AI Detection Platform</div>
+                        <div class="hero-title">Detect Deepfakes in Seconds</div>
+                        <div class="hero-desc">4 specialized AI models for images, faces, videos, and synthetic content.</div>
+                        <button class="hero-cta" onclick="goToModels()">Start Detection <i class="fas fa-arrow-right"></i></button>
+                        <div class="hero-stats">
+                            <div class="stat">
+                                <span class="stat-value">94%</span>
+                                <span class="stat-label">Accuracy</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value">0</span>
+                                <span class="stat-label">My Scans</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value">1.8s</span>
+                                <span class="stat-label">Avg Speed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Detection Models</div>
+                    <div class="model-grid">
+                        <div class="model-card" onclick="goToHowItWorks()">
+                            <div class="model-number">01</div>
+                            <div class="model-icon"><i class="fas fa-image"></i></div>
+                            <div class="model-title">AI Image Detector</div>
+                            <div class="model-desc">DALL-E • Midjourney • SD</div>
+                        </div>
+                        <div class="model-card" onclick="goToHowItWorks()">
+                            <div class="model-number">02</div>
+                            <div class="model-icon"><i class="fas fa-face-smile"></i></div>
+                            <div class="model-title">Face Deepfake</div>
+                            <div class="model-desc">Face-swap detection</div>
+                        </div>
+                        <div class="model-card" onclick="goToHowItWorks()">
+                            <div class="model-number">03</div>
+                            <div class="model-icon"><i class="fas fa-film"></i></div>
+                            <div class="model-title">Video Analyzer</div>
+                            <div class="model-desc">Frame-by-frame video</div>
+                        </div>
+                        <div class="model-card" onclick="goToHowItWorks()">
+                            <div class="model-number">04</div>
+                            <div class="model-icon"><i class="fas fa-sparkles"></i></div>
+                            <div class="model-title">AI Content Classifier</div>
+                            <div class="model-desc">Multi-modal synthetic</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODEL SELECTION SCREEN -->
+            <div class="screen" id="models">
+                <div style="margin-bottom: 20px;">
+                    <h2 style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">Choose a Model</h2>
+                    <p style="font-size: 13px; color: #999;">Select the detection model best suited for your media type.</p>
+                </div>
+
+                <div style="flex: 1; overflow-y: auto;">
+                    <div class="model-list-item">
+                        <div class="model-list-icon"><i class="fas fa-image"></i></div>
+                        <div class="model-list-content">
+                            <div class="model-list-num">Model 01</div>
+                            <div class="model-list-title">AI Image Detector</div>
+                            <div class="model-list-desc">DALL-E • Midjourney • SD</div>
+                        </div>
+                        <div class="model-list-arrow"><i class="fas fa-chevron-right"></i></div>
+                    </div>
+
+                    <div class="model-list-item">
+                        <div class="model-list-icon"><i class="fas fa-face-smile"></i></div>
+                        <div class="model-list-content">
+                            <div class="model-list-num">Model 02</div>
+                            <div class="model-list-title">Face Deepfake</div>
+                            <div class="model-list-desc">Face-swap detection</div>
+                        </div>
+                        <div class="model-list-arrow"><i class="fas fa-chevron-right"></i></div>
+                    </div>
+
+                    <div class="model-list-item">
+                        <div class="model-list-icon"><i class="fas fa-film"></i></div>
+                        <div class="model-list-content">
+                            <div class="model-list-num">Model 03</div>
+                            <div class="model-list-title">Video Analyzer</div>
+                            <div class="model-list-desc">Frame-by-frame video</div>
+                        </div>
+                        <div class="model-list-arrow"><i class="fas fa-chevron-right"></i></div>
+                    </div>
+
+                    <div class="model-list-item">
+                        <div class="model-list-icon"><i class="fas fa-sparkles"></i></div>
+                        <div class="model-list-content">
+                            <div class="model-list-num">Model 04</div>
+                            <div class="model-list-title">AI Content Classifier</div>
+                            <div class="model-list-desc">Multi-modal synthetic</div>
+                        </div>
+                        <div class="model-list-arrow"><i class="fas fa-chevron-right"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HOW IT WORKS SCREEN -->
+            <div class="screen" id="howitworks">
+                <button class="back-button" onclick="goToModels()"><i class="fas fa-chevron-left"></i></button>
+                <h1 style="font-size: 20px; font-weight: 700; color: #333; margin-bottom: 20px;">How It Works</h1>
+
+                <div style="flex: 1; overflow-y: auto;">
+                    <div class="howitworks-header">
+                        <div class="howitworks-badge"><i class="fas fa-shield-alt"></i></div>
+                        <div class="howitworks-title">ChitraVision AI</div>
+                        <div class="howitworks-version">Version 2.4 • Powered by Gemini Vision</div>
+                    </div>
+
+                    <div class="section-title">4 Detection Models</div>
+
+                    <div class="model-detail">
+                        <div class="model-detail-num">01</div>
+                        <div class="model-detail-title">AI Image Detector</div>
+                        <div class="model-detail-desc">Detects AI-generated images from DALL-E, Midjourney, Stable Diffusion using EfficientNet-v4.</div>
+                        <div class="tech-tags">
+                            <span class="tech-tag">EfficientNet-v4</span>
+                            <span class="tech-tag">HuggingFace</span>
+                        </div>
+                    </div>
+
+                    <div class="model-detail">
+                        <div class="model-detail-num">02</div>
+                        <div class="model-detail-title">Deepfake Face Detector</div>
+                        <div class="model-detail-desc">Detects face-swapped images. Uses MTCNN for face detection + XceptionNet classifier.</div>
+                        <div class="tech-tags">
+                            <span class="tech-tag">XceptionNet</span>
+                            <span class="tech-tag">FaceForensics++</span>
+                        </div>
+                    </div>
+
+                    <div class="model-detail">
+                        <div class="model-detail-num">03</div>
+                        <div class="model-detail-title">Video Deepfake Analyzer</div>
+                        <div class="model-detail-desc">Frame-by-frame analysis using OpenCV + per-frame inference with timeline report.</div>
+                        <div class="tech-tags">
+                            <span class="tech-tag">EfficientNet</span>
+                            <span class="tech-tag">OpenCV</span>
+                        </div>
+                    </div>
+
+                    <div class="model-detail">
+                        <div class="model-detail-num">04</div>
+                        <div class="model-detail-title">AI Content Classifier</div>
+                        <div class="model-detail-desc">Multi-modal classifier using ViT for identifying synthetic AI-generated media.</div>
+                        <div class="tech-tags">
+                            <span class="tech-tag">ViT Transformer</span>
+                            <span class="tech-tag">Multi-modal</span>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-top: 20px;">Tech Stack</div>
+                    <div class="tech-tags" style="gap: 8px;">
+                        <span class="tech-tag">React Native</span>
+                        <span class="tech-tag">Expo</span>
+                        <span class="tech-tag">FastAPI</span>
+                        <span class="tech-tag">MongoDB</span>
+                        <span class="tech-tag">Gemini Vision</span>
+                        <span class="tech-tag">PyTorch</span>
+                        <span class="tech-tag">OpenCV</span>
+                        <span class="tech-tag">HuggingFace</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORY SCREEN -->
+            <div class="screen" id="history">
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 12px; color: #007AFF; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Archive</div>
+                    <h2 style="font-size: 20px; font-weight: 700; color: #333;">Scan History</h2>
+                </div>
+
+                <div class="search-box">
+                    <i class="fas fa-search" style="color: #999;"></i>
+                    <input type="text" placeholder="Search scans...">
+                </div>
+
+                <div class="filter-chips">
+                    <div class="chip active">All</div>
+                    <div class="chip">AI Image</div>
+                    <div class="chip">Face</div>
+                    <div class="chip">Video</div>
+                    <div class="chip">Content</div>
+                </div>
+
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+                        <div class="empty-title">No scans found</div>
+                        <div class="empty-desc">Your analysis history will appear here</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROFILE SCREEN -->
+            <div class="screen" id="profile">
+                <div style="flex: 1; overflow-y: auto;">
+                    <div class="profile-header">
+                        <div class="profile-avatar">D</div>
+                        <div class="profile-name">Dsa</div>
+                        <div class="profile-email">dsa06112006@gmail.com</div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stat-item">
+                            <span class="stat-num">0</span>
+                            <span class="stat-name">Total Scans</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" style="color: #ff3b30;">0</span>
+                            <span class="stat-name">Fakes Found</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" style="color: #34c759;">0</span>
+                            <span class="stat-name">Cleared</span>
+                        </div>
+                    </div>
+
+                    <div class="level-card">
+                        <div class="level-info">
+                            <div class="level-title">Level 1 Analyst</div>
+                            <div class="level-progress">0% to next</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Account</div>
+                    <div class="setting-section">
+                        <div class="setting-item">
+                            <div class="setting-content">
+                                <div class="setting-icon"><i class="fas fa-info-circle"></i></div>
+                                <div class="setting-text">
+                                    <div class="setting-title">About & How It Works</div>
+                                    <div class="setting-desc">4 detection models explained</div>
+                                </div>
+                            </div>
+                            <div class="setting-arrow"><i class="fas fa-chevron-right"></i></div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-content">
+                                <div class="setting-icon"><i class="fas fa-bell"></i></div>
+                                <div class="setting-text">
+                                    <div class="setting-title">Notifications</div>
+                                    <div class="setting-desc">Push settings</div>
+                                </div>
+                            </div>
+                            <div class="setting-arrow"><i class="fas fa-chevron-right"></i></div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-content">
+                                <div class="setting-icon"><i class="fas fa-shield-alt"></i></div>
+                                <div class="setting-text">
+                                    <div class="setting-title">Privacy & Security</div>
+                                    <div class="setting-desc">Data & sessions</div>
+                                </div>
+                            </div>
+                            <div class="setting-arrow"><i class="fas fa-chevron-right"></i></div>
+                        </div>
+
+                        <div class="setting-item" onclick="goToLogin()">
+                            <div class="setting-content">
+                                <div class="setting-icon" style="background: #ffe8e8; color: #ff3b30;"><i class="fas fa-sign-out-alt"></i></div>
+                                <div class="setting-text">
+                                    <div class="setting-title" style="color: #ff3b30;">Sign Out</div>
+                                    <div class="setting-desc">Log out of account</div>
+                                </div>
+                            </div>
+                            <div class="setting-arrow"><i class="fas fa-chevron-right"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM NAVIGATION -->
+            <div class="bottom-nav">
+                <button class="nav-item active" onclick="switchScreen('home')">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </button>
+                <button class="nav-item" onclick="switchScreen('models')">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Detect</span>
+                </button>
+                <button class="nav-item" onclick="switchScreen('history')">
+                    <i class="fas fa-clock"></i>
+                    <span>History</span>
+                </button>
+                <button class="nav-item" onclick="switchScreen('profile')">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+
+            // Remove active from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Show selected screen
+            document.getElementById(screenId).classList.add('active');
+
+            // Set active nav item
+            if (screenId === 'home') document.querySelectorAll('.nav-item')[0].classList.add('active');
+            else if (screenId === 'models') document.querySelectorAll('.nav-item')[1].classList.add('active');
+            else if (screenId === 'history') document.querySelectorAll('.nav-item')[2].classList.add('active');
+            else if (screenId === 'profile') document.querySelectorAll('.nav-item')[3].classList.add('active');
+        }
+
+        function goToLogin() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('login').classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        }
+
+        function goToRegister() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('register').classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        }
+
+        function goToHome() {
+            switchScreen('home');
+        }
+
+        function goToModels() {
+            switchScreen('models');
+        }
+
+        function goToHowItWorks() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('howitworks').classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        }
+    </script>
+</body>
+</html>
