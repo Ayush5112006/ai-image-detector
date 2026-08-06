@@ -48,7 +48,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Dsa',
+                      'Ayush',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -57,7 +57,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'dsa06112006@gmail.com',
+                      'thummarayush05@gmail.com',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withOpacity(0.9),

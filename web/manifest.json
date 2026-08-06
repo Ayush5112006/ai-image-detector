@@ -1,6 +1,6 @@
 {
-    "name": "ai_detector",
-    "short_name": "ai_detector",
+    "name": "CV AI",
+    "short_name": "CV AI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

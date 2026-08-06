@@ -6,6 +6,7 @@ import 'screens/app_shell.dart';
 import 'screens/how_it_works_screen.dart';
 import 'screens/model_detail_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,8 +42,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: isFirstTime ? '/onboarding' : '/login',
+      initialRoute: '/',
       routes: {
+        '/': (context) => SplashScreen(
+          onFinished: () {
+            Navigator.pushReplacementNamed(
+              context,
+              isFirstTime ? '/onboarding' : '/login',
+            );
+          },
+        ),
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),

@@ -56,13 +56,15 @@ class HowItWorksScreen extends StatelessWidget {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.shield,
-                      color: Colors.white,
-                      size: 32,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -103,53 +105,24 @@ class HowItWorksScreen extends StatelessWidget {
               num: '01',
               title: 'AI Image Detector',
               desc: 'Detects AI-generated images from DALL-E, Midjourney, Stable Diffusion using EfficientNet-v4.',
-              tags: ['EfficientNet-v4', 'HuggingFace'],
             ),
             const _HowItWorksModelDetail(
               num: '02',
               title: 'Deepfake Face Detector',
               desc: 'Detects face-swapped images. Uses MTCNN for face detection + XceptionNet classifier.',
-              tags: ['XceptionNet', 'FaceForensics++'],
             ),
             const _HowItWorksModelDetail(
               num: '03',
               title: 'Video Deepfake Analyzer',
               desc: 'Frame-by-frame analysis using OpenCV + per-frame inference with timeline report.',
-              tags: ['EfficientNet', 'OpenCV'],
             ),
             const _HowItWorksModelDetail(
               num: '04',
               title: 'AI Content Classifier',
               desc: 'Multi-modal classifier using ViT for identifying synthetic AI-generated media.',
-              tags: ['ViT Transformer', 'Multi-modal'],
             ),
 
-            const SizedBox(height: 20),
-            const Text(
-              'TECH STACK',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF999999),
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _TechTag(text: 'React Native'),
-                _TechTag(text: 'Expo'),
-                _TechTag(text: 'FastAPI'),
-                _TechTag(text: 'MongoDB'),
-                _TechTag(text: 'Gemini Vision'),
-                _TechTag(text: 'PyTorch'),
-                _TechTag(text: 'OpenCV'),
-                _TechTag(text: 'HuggingFace'),
-              ],
-            ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -161,13 +134,11 @@ class _HowItWorksModelDetail extends StatelessWidget {
   final String num;
   final String title;
   final String desc;
-  final List<String> tags;
 
   const _HowItWorksModelDetail({
     required this.num,
     required this.title,
     required this.desc,
-    required this.tags,
   });
 
   @override
@@ -214,12 +185,6 @@ class _HowItWorksModelDetail extends StatelessWidget {
                 color: Color(0xFF666666),
                 height: 1.5,
               ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: tags.map((t) => _TechTag(text: t)).toList(),
             ),
           ],
         ),

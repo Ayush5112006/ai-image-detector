@@ -1,0 +1,365 @@
+// splash_screen.dart
+//
+// ChitraVisionAI animated splash screen — Flutter port of the HTML/CSS splash.
+//
+// SETUP:
+// 1. Put the logo file at:  assets/logo_icon.png  (already included in this folder)
+// 2. In pubspec.yaml add:
+//
+//    flutter:
+//      uses-material-design: true
+//      assets:
+//        - assets/logo_icon.png
+//      fonts:
+//        - family: Poppins
+//          fonts:
+//            - asset: assets/fonts/Poppins-Regular.ttf
+//            - asset: assets/fonts/Poppins-Medium.ttf
+//              weight: 500
+//            - asset: assets/fonts/Poppins-SemiBold.ttf
+//              weight: 600
+//            - asset: assets/fonts/Poppins-Bold.ttf
+//              weight: 700
+//
+//    (Or simplest: add the `google_fonts` package to pubspec.yaml and use
+//     GoogleFonts.poppins(...) instead of fontFamily: 'Poppins' below —
+//     no font files to manage.)
+//
+// 3. Navigate to this screen first, e.g. in main.dart:
+//
+//    MaterialApp(
+//      home: const SplashScreen(),
+//      ...
+//    );
+//
+//    then from SplashScreen -> Navigator.pushReplacement(...) to your home page
+//    once onFinished() fires (already wired up below).
+
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key, this.onFinished});
+
+  /// Called once the full intro sequence has completed.
+  /// Use it to navigate to your home screen.
+  final VoidCallback? onFinished;
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  // Master intro timeline: icon zoom-in (0 -> 1.8s), text (2.0s / 2.25s),
+  // dots (2.6s). Mirrors the animation-delay values in the HTML file.
+  late final AnimationController _introController;
+
+  // Looping controller for the glow pulse + dot bounce, started once the
+  // intro settles (matches `infinite alternate` / `infinite` in CSS).
+  late final AnimationController _loopController;
+
+  late final Animation<double> _iconScale;
+  late final Animation<double> _iconRotate;
+  late final Animation<double> _iconOpacity;
+
+  late final Animation<double> _titleOpacity;
+  late final Animation<Offset> _titleSlide;
+
+  late final Animation<double> _subtitleOpacity;
+  late final Animation<Offset> _subtitleSlide;
+
+  late final Animation<double> _dotsOpacity;
+
+  static const _totalIntroMs = 3400; // slightly after the last fade (2.6s + 0.6s)
+
+  @override
+  void initState() {
+    super.initState();
+
+    _introController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: _totalIntroMs),
+    );
+
+    // --- icon: 0s -> 1.8s, cubic-bezier(.25,1.1,.35,1) approximated with easeOutBack ---
+    _iconScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.3, end: 1.08)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 60,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.08, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 40,
+      ),
+    ]).animate(CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.0, 1800 / _totalIntroMs, curve: Curves.linear),
+    ));
+
+    _iconRotate = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: -160 * math.pi / 180, end: 6 * math.pi / 180)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 60,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 6 * math.pi / 180, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 40,
+      ),
+    ]).animate(CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(0.0, 1800 / _totalIntroMs, curve: Curves.linear),
+    ));
+
+    _iconOpacity = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _introController,
+      curve: Interval(0.0, 900 / _totalIntroMs, curve: Curves.easeIn),
+    ));
+
+    // --- title: fade + slide up, delay 2.0s, duration 0.8s ---
+    _titleOpacity = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _introController,
+      curve: Interval(2000 / _totalIntroMs, 2800 / _totalIntroMs,
+          curve: Curves.easeOut),
+    ));
+    _titleSlide = Tween(begin: const Offset(0, 0.25), end: Offset.zero)
+        .animate(CurvedAnimation(
+      parent: _introController,
+      curve: Interval(2000 / _totalIntroMs, 2800 / _totalIntroMs,
+          curve: Curves.easeOut),
+    ));
+
+    // --- subtitle: delay 2.25s, duration 0.8s ---
+    _subtitleOpacity = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _introController,
+      curve: Interval(2250 / _totalIntroMs, 3050 / _totalIntroMs,
+          curve: Curves.easeOut),
+    ));
+    _subtitleSlide = Tween(begin: const Offset(0, 0.25), end: Offset.zero)
+        .animate(CurvedAnimation(
+      parent: _introController,
+      curve: Interval(2250 / _totalIntroMs, 3050 / _totalIntroMs,
+          curve: Curves.easeOut),
+    ));
+
+    // --- dots: delay 2.6s, duration 0.6s ---
+    _dotsOpacity = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _introController,
+      curve: Interval(2600 / _totalIntroMs, 3200 / _totalIntroMs,
+          curve: Curves.easeOut),
+    ));
+
+    // Looping glow + dot bounce (starts alongside the intro; visually only
+    // matters once opacity > 0).
+    _loopController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+
+    _introController.forward();
+
+    _introController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        widget.onFinished?.call();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _introController.dispose();
+    _loopController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0A0D),
+      body: Stack(
+        children: [
+          // ambient radial glows (top-left pink, bottom-right blue) —
+          // approximates the CSS radial-gradient background.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.5, -0.7),
+                  radius: 0.9,
+                  colors: [
+                    const Color(0xFFFF2DB0).withOpacity(0.14),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.5, 0.7),
+                  radius: 0.9,
+                  colors: [
+                    const Color(0xFF1E6BFF).withOpacity(0.16),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // content
+          AnimatedBuilder(
+            animation: Listenable.merge([_introController, _loopController]),
+            builder: (context, _) {
+              // glow: from soft magenta to soft blue, alternating
+              final glow = Color.lerp(
+                const Color(0xFFFF2DB0).withOpacity(0.35),
+                const Color(0xFF1E6BFF).withOpacity(0.45),
+                _loopController.value,
+              )!;
+
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ---- icon ----
+                    Opacity(
+                      opacity: _iconOpacity.value,
+                      child: Transform.rotate(
+                        angle: _iconRotate.value,
+                        child: Transform.scale(
+                          scale: _iconScale.value,
+                          child: Container(
+                            width: 140,
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: glow,
+                                  blurRadius: 30,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/logo_icon.png',
+                              width: 140,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 26),
+
+                    // ---- title: "ChitraVisionAI" with gradient fill ----
+                    SlideTransition(
+                      position: _titleSlide,
+                      child: FadeTransition(
+                        opacity: _titleOpacity,
+                        child: ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [
+                              Color(0xFFFF4FC3),
+                              Color(0xFFB24CFF),
+                              Color(0xFF4F7BFF),
+                              Color(0xFF2AB0FF),
+                            ],
+                            stops: [0.0, 0.45, 0.75, 1.0],
+                          ).createShader(bounds),
+                          child: const Text(
+                            'ChitraVisionAI',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                              color: Colors.white, // masked by ShaderMask
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // ---- subtitle ----
+                    SlideTransition(
+                      position: _subtitleSlide,
+                      child: FadeTransition(
+                        opacity: _subtitleOpacity,
+                        child: Text(
+                          'AI DETECTION PLATFORM',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11.5,
+                            letterSpacing: 3,
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 50),
+
+                    // ---- loading dots ----
+                    FadeTransition(
+                      opacity: _dotsOpacity,
+                      child: _LoadingDots(controller: _loopController),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Three bouncing dots, staggered like the CSS `animation-delay: 0.15s / 0.3s`.
+class _LoadingDots extends StatelessWidget {
+  const _LoadingDots({required this.controller});
+
+  final AnimationController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) {
+              // stagger each dot by shifting the phase
+              final t = (controller.value + i * 0.18) % 1.0;
+              final bounce = math.sin(t * math.pi); // 0 -> 1 -> 0
+              return Transform.translate(
+                offset: Offset(0, -5 * bounce),
+                child: Opacity(
+                  opacity: 0.35 + 0.65 * bounce,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFB4B4DC),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }),
+    );
+  }
+}
