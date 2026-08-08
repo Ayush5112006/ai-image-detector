@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
+import '../widgets/profile_avatar.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({super.key, this.onStartDetection});
+
+  /// Switches to the Detect tab when the user taps the CTA in the empty state.
+  final VoidCallback? onStartDetection;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -14,7 +19,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
@@ -22,46 +27,53 @@ class _HistoryScreenState extends State<HistoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
-              const Text(
-                'ARCHIVE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF007AFF),
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Scan History',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF333333),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Search Box
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: const TextField(
-                  decoration: InputDecoration(
-                    icon: Icon(Icons.search, color: Color(0xFF999999)),
-                    hintText: 'Search scans...',
-                    hintStyle: TextStyle(color: Color(0xFF999999), fontSize: 14),
-                    border: InputBorder.none,
+              Row(
+                children: [
+                  ProfileAvatar(
+                    name: 'Ayush',
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/profile_details'),
                   ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ARCHIVE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Scan History',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Search field
+              TextField(
+                decoration: AppInputDecoration.build(
+                  hint: 'Search scans...',
+                  icon: Icons.search,
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Filter Chips
+              // Filter chips
               SizedBox(
                 height: 38,
                 child: ListView.builder(
@@ -73,16 +85,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       padding: const EdgeInsets.only(right: 8.0),
                       child: GestureDetector(
                         onTap: () {
-                          setState(() {
-                            _activeChipIndex = index;
-                          });
+                          setState(() => _activeChipIndex = index);
                         },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
-                            color: isActive ? const Color(0xFF007AFF) : Colors.white,
+                            color: isActive ? AppColors.primary : Colors.white,
                             border: Border.all(
-                              color: isActive ? const Color(0xFF007AFF) : const Color(0xFFE0E0E0),
+                              color: isActive
+                                  ? AppColors.primary
+                                  : AppColors.divider,
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -90,9 +106,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             child: Text(
                               _chips[index],
                               style: TextStyle(
-                                color: isActive ? Colors.white : const Color(0xFF333333),
+                                color: isActive
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
                                 fontSize: 12,
-                                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                                fontWeight: isActive
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ),
@@ -102,37 +122,56 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
 
-              // Empty State
+              // Empty state
               Expanded(
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.folder_open_outlined,
-                        size: 64,
-                        color: Color(0xFFDDDDDD),
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.folder_open_outlined,
+                          size: 44,
+                          color: AppColors.primary,
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       const Text(
-                        'No scans found',
+                        'No scans yet',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Your analysis history will appear here',
+                        'Your analysis history will appear here once you\nrun your first detection.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF999999),
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: 200,
+                        child: AppPrimaryButton(
+                          label: 'Start Detecting',
+                          icon: Icons.shield_outlined,
+                          onPressed: widget.onStartDetection,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),

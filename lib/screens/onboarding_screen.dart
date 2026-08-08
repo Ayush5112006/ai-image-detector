@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,26 +17,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'icon': Icons.auto_awesome,
       'title': '4 AI Detection Models',
-      'desc': 'Detect AI-generated images, deepfake faces, manipulated videos, and synthetic content — all in one app.',
+      'desc':
+          'Detect AI-generated images, deepfake faces, manipulated videos, and synthetic content — all in one app.',
+      'tag': 'Smart',
     },
     {
       'icon': Icons.movie_outlined,
       'title': 'Frame-by-Frame Analysis',
-      'desc': 'Every video frame is analyzed independently. See exactly where deepfake manipulation begins and ends.',
+      'desc':
+          'Every video frame is analyzed independently. See exactly where deepfake manipulation begins and ends.',
+      'tag': 'Detailed',
     },
     {
       'icon': Icons.insert_chart_outlined,
       'title': 'Instant Verdict & Report',
-      'desc': 'Get a confidence-scored verdict, heatmap overlay, and downloadable report in seconds.',
+      'desc':
+          'Get a confidence-scored verdict, heatmap overlay, and downloadable report in seconds.',
+      'tag': 'Fast',
     },
     {
       'icon': Icons.shield_outlined,
       'title': '94% Accurate & Secure',
-      'desc': 'Powered by EfficientNet, XceptionNet, and ViT models trained on millions of real and synthetic samples.',
+      'desc':
+          'Powered by EfficientNet, XceptionNet, and ViT models trained on millions of real and synthetic samples.',
+      'tag': 'Trusted',
     },
   ];
 
-  Future<void> _completeOnboarding(BuildContext context, String destination) async {
+  Future<void> _completeOnboarding(
+    BuildContext context,
+    String destination,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_first_time', false);
     if (context.mounted) {
@@ -47,188 +59,265 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: () => _completeOnboarding(context, '/login'),
-            child: const Text(
-              'Skip',
-              style: TextStyle(
-                color: Color(0xFF007AFF),
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+      body: Stack(
+        children: [
+          // Soft decorative gradient blobs
+          Positioned(
+            top: -80,
+            right: -80,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.gradientStart.withValues(alpha: 0.08),
               ),
             ),
           ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _slides.length,
-                onPageChanged: (int page) {
-                  setState(() {
-                    _currentPage = page;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  final slide = _slides[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Slide Image / Icon Container
-                        Container(
-                          width: double.infinity,
-                          height: 260,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0082FF), Color(0xFF4936DF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF4936DF).withOpacity(0.18),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            slide['icon'],
-                            color: Colors.white,
-                            size: 80,
-                          ),
-                        ),
-                        const SizedBox(height: 48),
-
-                        // Title
-                        Text(
-                          slide['title'],
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Description
-                        Text(
-                          slide['desc'],
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF64748B),
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+          Positioned(
+            bottom: 120,
+            left: -90,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.gradientEnd.withValues(alpha: 0.08),
               ),
             ),
-
-            // Pagination Dots
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _slides.length,
-                (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                  height: 6,
-                  width: _currentPage == index ? 24 : 6,
-                  decoration: BoxDecoration(
-                    color: _currentPage == index ? const Color(0xFF007AFF) : const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(3),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'ChitraVision AI',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _completeOnboarding(context, '/login'),
+                        child: const Text(
+                          'Skip',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 32),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _slides.length,
+                    onPageChanged: (int page) {
+                      setState(() => _currentPage = page);
+                    },
+                    itemBuilder: (context, index) {
+                      final slide = _slides[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Illustration icon card
+                            Container(
+                              width: double.infinity,
+                              height: 260,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.gradientStart,
+                                    AppColors.gradientEnd,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.gradientEnd.withValues(alpha: 0.25),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Stack(
+                                children: [
+                                  // decorative rings
+                                  Positioned(
+                                    top: 18,
+                                    right: 18,
+                                    child: Container(
+                                      width: 90,
+                                      height: 90,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.25),
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 24,
+                                    left: 24,
+                                    child: Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withValues(alpha: 0.15),
+                                      ),
+                                    ),
+                                  ),
+                                  Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(22),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        slide['icon'],
+                                        color: Colors.white,
+                                        size: 72,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 40),
 
-            // Action Buttons
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0082FF), Color(0xFF4936DF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF4936DF).withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                            // Title
+                            Text(
+                              slide['title'],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Description
+                            Text(
+                              slide['desc'],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: AppColors.textSecondary,
+                                height: 1.55,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (_currentPage < _slides.length - 1) {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeIn,
-                          );
-                        } else {
-                          _completeOnboarding(context, '/login');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        _currentPage == _slides.length - 1 ? 'Get Started' : 'Continue',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Pagination dots
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _slides.length,
+                    (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                      height: 6,
+                      width: _currentPage == index ? 24 : 6,
+                      decoration: BoxDecoration(
+                        color: _currentPage == index
+                            ? AppColors.primary
+                            : AppColors.divider,
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => _completeOnboarding(context, '/login'),
-                    child: const Text(
-                      'I have an account',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(height: 28),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AppPrimaryButton(
+                        label: _currentPage == _slides.length - 1
+                            ? 'Get Started'
+                            : 'Continue',
+                        icon: _currentPage == _slides.length - 1
+                            ? Icons.rocket_launch_outlined
+                            : Icons.arrow_forward,
+                        onPressed: () {
+                          if (_currentPage < _slides.length - 1) {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeOutCubic,
+                            );
+                          } else {
+                            _completeOnboarding(context, '/login');
+                          }
+                        },
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () => _completeOnboarding(context, '/login'),
+                        child: const Text(
+                          'I already have an account',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

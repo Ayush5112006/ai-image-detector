@@ -154,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen>
                   center: const Alignment(-0.5, -0.7),
                   radius: 0.9,
                   colors: [
-                    const Color(0xFFFF2DB0).withOpacity(0.14),
+                    const Color(0xFFFF2DB0).withValues(alpha: 0.14),
                     Colors.transparent,
                   ],
                 ),
@@ -168,7 +168,7 @@ class _SplashScreenState extends State<SplashScreen>
                   center: const Alignment(0.5, 0.7),
                   radius: 0.9,
                   colors: [
-                    const Color(0xFF1E6BFF).withOpacity(0.16),
+                    const Color(0xFF1E6BFF).withValues(alpha: 0.16),
                     Colors.transparent,
                   ],
                 ),
@@ -182,8 +182,8 @@ class _SplashScreenState extends State<SplashScreen>
             builder: (context, _) {
               // glow: from soft magenta to soft blue, alternating
               final glow = Color.lerp(
-                const Color(0xFFFF2DB0).withOpacity(0.35),
-                const Color(0xFF1E6BFF).withOpacity(0.45),
+                const Color(0xFFFF2DB0).withValues(alpha: 0.35),
+                const Color(0xFF1E6BFF).withValues(alpha: 0.45),
                 _loopController.value,
               )!;
 
@@ -260,7 +260,7 @@ class _SplashScreenState extends State<SplashScreen>
                           style: TextStyle(
                             fontSize: 11.5,
                             letterSpacing: 3,
-                            color: Colors.white.withOpacity(0.5),
+                            color: Colors.white.withValues(alpha: 0.5),
                           ),
                         ),
                       ),

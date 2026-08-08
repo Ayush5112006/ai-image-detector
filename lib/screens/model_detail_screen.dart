@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme.dart';
 
 class ModelDetailScreen extends StatefulWidget {
   final String modelId;
@@ -116,8 +117,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Selected $_selectedFileName'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: const Color(0xFF007AFF),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -126,8 +126,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error picking file: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.danger,
         ),
       );
     }
@@ -330,8 +329,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Hugging Face Token saved successfully!'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Color(0xFF007AFF),
+                    backgroundColor: AppColors.success,
                   ),
                 );
               },
@@ -423,7 +421,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFFB300).withOpacity(0.15),
+                                      color: const Color(0xFFFFB300).withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: const Text(
@@ -648,6 +646,57 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
     );
   }
 
+  Widget _buildResultState() {
+    final bool isReal = _resultMessage!.contains('Real');
+    final Color resultColor = isReal ? AppColors.success : AppColors.danger;
+    final Color resultBg = isReal ? AppColors.successBg : AppColors.dangerBg;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            color: resultBg,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isReal ? Icons.check_circle : Icons.gpp_maybe,
+            color: resultColor,
+            size: 44,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          _resultMessage!,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.bold,
+            color: resultColor,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: 180,
+          child: AppSecondaryButton(
+            label: 'Scan Another',
+            icon: Icons.refresh,
+            onPressed: () {
+              setState(() {
+                _isMediaSelected = false;
+                _selectedFileName = null;
+                _selectedFileBytes = null;
+                _resultMessage = null;
+              });
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final config = _getModelConfig();
@@ -670,7 +719,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -706,7 +755,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -730,7 +779,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -757,15 +806,15 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                 padding: const EdgeInsets.all(24.0),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF0082FF), Color(0xFF4936DF)],
+                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF4936DF).withOpacity(0.2),
-                      blurRadius: 15,
+                      color: AppColors.gradientEnd.withValues(alpha: 0.25),
+                      blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
                   ],
@@ -778,7 +827,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
@@ -802,7 +851,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                       config['subtitle'],
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         height: 1.4,
                       ),
                     ),
@@ -828,8 +877,8 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                                   child: CircularProgressIndicator(
                                     value: _analysisProgress,
                                     strokeWidth: 6,
-                                    backgroundColor: const Color(0xFFE8F0FF),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
+                                    backgroundColor: AppColors.surfaceAlt,
+                                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                                   ),
                                 ),
                                 const SizedBox(height: 24),
@@ -838,7 +887,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF333333),
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -846,60 +895,13 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                                   'Scanning frame signatures',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Color(0xFF999999),
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
                             )
                           : _resultMessage != null
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 64,
-                                      height: 64,
-                                      decoration: BoxDecoration(
-                                        color: _resultMessage!.contains('Real')
-                                            ? const Color(0xFFE8F5E9)
-                                            : const Color(0xFFFFEBEE),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        _resultMessage!.contains('Real') ? Icons.check_circle : Icons.warning,
-                                        color: _resultMessage!.contains('Real') ? Colors.green : Colors.red,
-                                        size: 36,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    Text(
-                                      _resultMessage!,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: _resultMessage!.contains('Real') ? Colors.green : Colors.red,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ElevatedButton.icon(
-                                      onPressed: () {
-                                        setState(() {
-                                          _isMediaSelected = false;
-                                          _selectedFileName = null;
-                                          _selectedFileBytes = null;
-                                          _resultMessage = null;
-                                        });
-                                      },
-                                      icon: const Icon(Icons.refresh, size: 16),
-                                      label: const Text('Reset'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFF0F2F5),
-                                        foregroundColor: const Color(0xFF333333),
-                                        elevation: 0,
-                                      ),
-                                    ),
-                                  ],
-                                )
+                              ? _buildResultState()
                               : _isMediaSelected
                                   ? Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
@@ -973,18 +975,19 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 20),
-                                        ElevatedButton(
+                                        ElevatedButton.icon(
                                           onPressed: _pickMedia,
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF007AFF),
+                                            backgroundColor: AppColors.primary,
                                             foregroundColor: Colors.white,
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(30),
+                                              borderRadius: BorderRadius.circular(AppRadius.pill),
                                             ),
-                                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
                                             elevation: 0,
                                           ),
-                                          child: const Text(
+                                          icon: const Icon(Icons.photo_library_outlined, size: 18),
+                                          label: const Text(
                                             'Choose from Gallery',
                                             style: TextStyle(
                                               fontSize: 13,
@@ -1001,56 +1004,14 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
               const SizedBox(height: 24),
 
               // Analyze Media Button
-              Container(
-                height: 54,
-                decoration: BoxDecoration(
-                  gradient: _isMediaSelected && !_isAnalyzing && _resultMessage == null
-                      ? const LinearGradient(
-                          colors: [Color(0xFF0082FF), Color(0xFF4936DF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : LinearGradient(
-                          colors: [const Color(0xFFE0E0E0).withOpacity(0.8), const Color(0xFFF0F0F0).withOpacity(0.8)],
-                        ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: _isMediaSelected && !_isAnalyzing && _resultMessage == null
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF4936DF).withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ]
-                      : null,
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: _isMediaSelected && !_isAnalyzing && _resultMessage == null ? _startAnalysis : null,
-                  icon: Icon(
-                    Icons.search,
-                    color: _isMediaSelected && !_isAnalyzing && _resultMessage == null
-                        ? Colors.white
-                        : const Color(0xFFBBBBBB),
-                    size: 20,
-                  ),
-                  label: Text(
-                    'Analyze Media',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: _isMediaSelected && !_isAnalyzing && _resultMessage == null
-                          ? Colors.white
-                          : const Color(0xFF999999),
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
+              AppPrimaryButton(
+                label: 'Analyze Media',
+                icon: Icons.search,
+                enabled: _isMediaSelected &&
+                    !_isAnalyzing &&
+                    _resultMessage == null,
+                loading: _isAnalyzing,
+                onPressed: _startAnalysis,
               ),
             ],
           ),

@@ -51,7 +51,7 @@ class PremiumButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF007AFF).withOpacity(0.2),
+            color: const Color(0xFF007AFF).withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

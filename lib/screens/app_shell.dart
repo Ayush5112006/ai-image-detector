@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'home_screen.dart';
 import 'detect_screen.dart';
 import 'history_screen.dart';
@@ -13,59 +14,62 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
+  late final List<Widget> _screens;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const DetectScreen(),
-    const HistoryScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      HomeScreen(onStartDetection: () => _onItemTapped(1)),
+      const DetectScreen(),
+      HistoryScreen(onStartDetection: () => _onItemTapped(1)),
+      const ProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
-      body: _screens[_selectedIndex],
+      backgroundColor: AppColors.background,
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(
-            top: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+            top: BorderSide(color: AppColors.divider),
           ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (int index) {
+            setState(() => _selectedIndex = index);
+          },
           backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF007AFF),
-          unselectedItemColor: const Color(0xFF999999),
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: const [
-            BottomNavigationBarItem(
+          height: 68,
+          indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: const [
+            NavigationDestination(
               icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              selectedIcon: Icon(Icons.home),
               label: 'Home',
             ),
-            BottomNavigationBarItem(
+            NavigationDestination(
               icon: Icon(Icons.shield_outlined),
-              activeIcon: Icon(Icons.shield),
+              selectedIcon: Icon(Icons.shield),
               label: 'Detect',
             ),
-            BottomNavigationBarItem(
+            NavigationDestination(
               icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history),
+              selectedIcon: Icon(Icons.history),
               label: 'History',
             ),
-            BottomNavigationBarItem(
+            NavigationDestination(
               icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              selectedIcon: Icon(Icons.person),
               label: 'Profile',
             ),
           ],
