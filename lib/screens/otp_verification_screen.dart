@@ -2,17 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/api_service.dart';
 import '../services/email_service.dart';
 import '../theme.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
+  final String name;
   final String email;
+  final String password;
   final String otp;
 
   const OtpVerificationScreen({
     super.key,
+    required this.name,
     required this.email,
+    required this.password,
     required this.otp,
   });
 
@@ -102,9 +108,30 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       return;
     }
     setState(() => _isVerifying = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+    try {
+      final user = await ApiService.register(
+        name: widget.name,
+        email: widget.email,
+        password: widget.password,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      if (user['name'] != null) {
+        await prefs.setString('profile_name', user['name'].toString());
+      }
+      if (user['email'] != null) {
+        await prefs.setString('profile_email', user['email'].toString());
+      }
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _isVerifying = false);
+      setState(() => _errorText = e.message);
+    } on Exception catch (e) {
+      if (!mounted) return;
+      setState(() => _isVerifying = false);
+      setState(() => _errorText = 'Could not create account: $e');
+    }
   }
 
   Future<void> _resend() async {

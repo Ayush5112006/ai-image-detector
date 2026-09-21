@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server/gmail.dart';
 
+import '../config/api_config.dart';
 import '../config/email_config.dart';
 
 class EmailService {
@@ -27,46 +28,34 @@ class EmailService {
     }
   }
 
-  /// Sends OTP via EmailJS REST API (works on Flutter Web).
+  /// Sends OTP via the ChitraVision backend (Gmail SMTP). Works on web.
   static Future<void> _sendViaEmailJs({
     required String toEmail,
     required String otp,
   }) async {
-    const url = 'https://api.emailjs.com/api/v1.0/email/send';
-
-    // Debug: verify .env values are loaded
-    debugPrint('=== EmailJS Debug ===');
-    debugPrint('Service ID: "${EmailConfig.emailJsServiceId}"');
-    debugPrint('Template ID: "${EmailConfig.emailJsTemplateId}"');
-    debugPrint('Public Key: "${EmailConfig.emailJsPublicKey}"');
-    debugPrint('To Email: "$toEmail"');
-    debugPrint('OTP: "$otp"');
-
-    final payload = {
-      'service_id': EmailConfig.emailJsServiceId,
-      'template_id': EmailConfig.emailJsTemplateId,
-      'user_id': EmailConfig.emailJsPublicKey,
-      'template_params': {
-        'to_email': toEmail,
-        'otp_code': otp,
-        'app_name': 'ChitraVision AI',
-      },
-    };
+    final url = '${ApiConfig.baseUrl}/api/auth/send-otp';
 
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+      body: jsonEncode({
+        'email': toEmail,
+        'otp': otp,
+      }),
     );
 
-    debugPrint('EmailJS response status: ${response.statusCode}');
-    debugPrint('EmailJS response body: "${response.body}"');
-    debugPrint('====================');
+    debugPrint('Send-OTP response status: ${response.statusCode}');
+    debugPrint('Send-OTP response body: "${response.body}"');
 
     if (response.statusCode != 200) {
-      throw Exception(
-        'EmailJS error ${response.statusCode}: ${response.body}',
-      );
+      String message = 'Send-OTP error ${response.statusCode}';
+      try {
+        final data = jsonDecode(response.body);
+        if (data is Map && data['message'] != null) {
+          message = data['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(message);
     }
   }
 

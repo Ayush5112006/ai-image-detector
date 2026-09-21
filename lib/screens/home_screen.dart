@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/profile_avatar.dart';
 
@@ -23,6 +24,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadName() async {
+    try {
+      final user = await ApiService.me();
+      if (user['name']?.toString().isNotEmpty == true) {
+        if (!mounted) return;
+        setState(() => _name = user['name'].toString());
+        return;
+      }
+    } catch (e) {
+      debugPrint('Home name load failed: $e');
+    }
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {

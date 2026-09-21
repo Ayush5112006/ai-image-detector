@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../theme.dart';
 
 class ModelDetailScreen extends StatefulWidget {
@@ -61,6 +62,67 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
           'icon': Icons.auto_awesome,
           'formats': 'PNG, JPEG, WEBP, AVIF, GIF, TIFF, BMP, RAW · Max 10MB',
         };
+    }
+  }
+
+  void _recordResult(String message, Map<String, dynamic> config) {
+    setState(() {
+      _isAnalyzing = false;
+      _resultMessage = message;
+    });
+    _saveDetection(message, config);
+  }
+
+  Future<void> _saveDetection(
+    String message,
+    Map<String, dynamic> config,
+  ) async {
+    final bool isAI;
+    if (message.contains('Real') || message.contains('Unaltered')) {
+      isAI = false;
+    } else {
+      isAI = true;
+    }
+    final verdict = isAI ? 'AI' : 'Real';
+
+    double confidence = 0;
+    final match = RegExp(r'([\d.]+)\s*%').firstMatch(message);
+    if (match != null) {
+      confidence = double.tryParse(match.group(1)!) ?? 0;
+    }
+
+    final String category;
+    switch (widget.modelId) {
+      case '02':
+        category = 'face';
+      case '03':
+        category = 'video';
+      case '04':
+        category = 'content';
+      default:
+        category = 'image';
+    }
+
+    try {
+      await ApiService.createDetection(
+        modelId: widget.modelId,
+        modelName: config['title'].toString(),
+        category: category,
+        fileName: _selectedFileName ?? '',
+        verdict: verdict,
+        confidence: confidence,
+        resultLabel: message,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Scan saved to your history'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (e) {
+      debugPrint('Failed to save detection: $e');
     }
   }
 
@@ -133,6 +195,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
   }
 
   void _startAnalysis() async {
+    final config = _getModelConfig();
     setState(() {
       _isAnalyzing = true;
       _analysisProgress = 0.0;
@@ -213,10 +276,10 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                   ? 'AI Generated'
                   : 'Real / Human-made';
               final double scorePercent = maxScore * 100;
-              setState(() {
-                _isAnalyzing = false;
-                _resultMessage = '$label (${scorePercent.toStringAsFixed(1)}% Confidence)';
-              });
+              _recordResult(
+                '$label (${scorePercent.toStringAsFixed(1)}% Confidence)',
+                config,
+              );
             } else {
               setState(() {
                 _isAnalyzing = false;
@@ -265,12 +328,12 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
         });
       }
 
-      setState(() {
-        _isAnalyzing = false;
-        _resultMessage = widget.modelId == '02'
+      _recordResult(
+        widget.modelId == '02'
             ? 'Real / Unaltered (98.7% Confidence)'
-            : 'Deepfake Detected! (87.5% Confidence)';
-      });
+            : 'Deepfake Detected! (87.5% Confidence)',
+        config,
+      );
     }
   }
 

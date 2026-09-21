@@ -7,19 +7,26 @@ class AppColors {
   AppColors._();
 
   // Brand
-  static const Color primary = Color(0xFF007AFF);
-  static const Color primaryDark = Color(0xFF0051D5);
-  static const Color gradientStart = Color(0xFF0082FF);
-  static const Color gradientEnd = Color(0xFF4936DF);
+  static const Color primaryPink = Color(0xFFFF18B8);
+  static const Color primaryPurple = Color(0xFF7B2CFF);
+  static const Color primaryBlue = Color(0xFF1769FF);
+  static const Color cyanAccent = Color(0xFF3D9CFF);
+
+  /// Backwards-compat alias — use primaryBlue for new code.
+  static const Color primary = primaryBlue;
+  static const Color primaryDark = primaryPurple;
+  static const Color gradientStart = primaryPink;
+  static const Color gradientMid = primaryPurple;
+  static const Color gradientEnd = primaryBlue;
 
   // Surfaces
-  static const Color background = Color(0xFFF7F9FC);
-  static const Color surface = Colors.white;
-  static const Color surfaceAlt = Color(0xFFEFF4FB);
-  static const Color divider = Color(0xFFE5EAF2);
+  static const Color background = Color(0xFFFFFFFF);
+  static const Color surface = Color(0xFFF8F9FC);
+  static const Color surfaceAlt = Color(0xFFEFF2FB);
+  static const Color divider = Color(0xFFE2E6F0);
 
   // Text
-  static const Color textPrimary = Color(0xFF1F2937);
+  static const Color textPrimary = Color(0xFF1A1D2E);
   static const Color textSecondary = Color(0xFF6B7280);
   static const Color textHint = Color(0xFF9CA3AF);
 
@@ -27,9 +34,9 @@ class AppColors {
   static const Color success = Color(0xFF16A34A);
   static const Color successBg = Color(0xFFE7F6EC);
   static const Color danger = Color(0xFFE11D48);
-  static const Color dangerBg = Color(0xFFFDECEF);
+  static const Color dangerBg = Color(0xFF2B0D17);
   static const Color warning = Color(0xFFB45309);
-  static const Color warningBg = Color(0xFFFEF3E2);
+  static const Color warningBg = Color(0xFF2B1A05);
 }
 
 class AppSpacing {
@@ -118,16 +125,16 @@ class AppPrimaryButton extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [AppColors.gradientStart, AppColors.gradientEnd],
+              colors: [AppColors.gradientStart, AppColors.gradientMid, AppColors.gradientEnd],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(AppRadius.md),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryDark.withValues(alpha: 0.25),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
+                color: AppColors.primaryPurple.withValues(alpha: 0.40),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -242,7 +249,7 @@ class AppInputDecoration {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.primaryPink, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),

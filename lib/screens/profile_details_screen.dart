@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/profile_avatar.dart';
 
@@ -32,13 +33,30 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
 
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
+    var name = prefs.getString(_keyName);
+    var email = prefs.getString(_keyEmail);
+    var phone = prefs.getString(_keyPhone);
+    var location = prefs.getString(_keyLocation);
+    var bio = prefs.getString(_keyBio);
+
+    try {
+      final user = await ApiService.me();
+      name = user['name']?.toString();
+      email = user['email']?.toString();
+      phone = user['phone']?.toString();
+      location = user['location']?.toString();
+      bio = user['bio']?.toString();
+    } catch (e) {
+      debugPrint('Profile details backend load failed: $e');
+    }
+
     if (!mounted) return;
     setState(() {
-      _name = prefs.getString(_keyName) ?? _name;
-      _email = prefs.getString(_keyEmail) ?? _email;
-      _phone = prefs.getString(_keyPhone) ?? _phone;
-      _location = prefs.getString(_keyLocation) ?? _location;
-      _bio = prefs.getString(_keyBio) ?? _bio;
+      _name = name?.isNotEmpty == true ? name! : _name;
+      _email = email?.isNotEmpty == true ? email! : _email;
+      _phone = phone ?? _phone;
+      _location = location ?? _location;
+      _bio = bio ?? _bio;
     });
   }
 
@@ -51,6 +69,28 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
     );
 
     if (result == null || !mounted) return;
+    try {
+      final user = await ApiService.updateProfile(result);
+      if (!mounted) return;
+      setState(() {
+        _name = user['name']?.toString() ?? result['name'] ?? _name;
+        _email = user['email']?.toString() ?? result['email'] ?? _email;
+        _phone = user['phone']?.toString() ?? result['phone'] ?? _phone;
+        _location = user['location']?.toString() ?? result['location'] ?? _location;
+        _bio = user['bio']?.toString() ?? result['bio'] ?? _bio;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyName, result['name'] ?? _name);
     await prefs.setString(_keyEmail, result['email'] ?? _email);
@@ -58,13 +98,6 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
     await prefs.setString(_keyLocation, result['location'] ?? _location);
     await prefs.setString(_keyBio, result['bio'] ?? _bio);
     if (!mounted) return;
-    setState(() {
-      _name = result['name'] ?? _name;
-      _email = result['email'] ?? _email;
-      _phone = result['phone'] ?? _phone;
-      _location = result['location'] ?? _location;
-      _bio = result['bio'] ?? _bio;
-    });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(

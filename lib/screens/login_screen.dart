@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,16 +26,70 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _signIn() {
+  Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.vibrate();
       return;
     }
     setState(() => _isLoading = true);
-    Future.delayed(const Duration(milliseconds: 700), () {
+    try {
+      final user = await ApiService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      if (user['name'] != null) {
+        await prefs.setString('profile_name', user['name'].toString());
+      }
+      if (user['email'] != null) {
+        await prefs.setString('profile_email', user['email'].toString());
+      }
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
-    });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sign in failed: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final credential = await AuthService.signInWithGoogle();
+      if (!mounted) return;
+      if (credential != null) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   String? _validateEmail(String? value) {
@@ -124,12 +181,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Continue with Google
-                      AppSecondaryButton(
-                        label: 'Continue with Google',
-                        onPressed: () {
-                          Navigator.pushReplacementNamed(context, '/home');
-                        },
-                        icon: Icons.g_mobiledata,
+                      _GoogleSignInButton(
+                        onPressed: _isLoading ? null : _signInWithGoogle,
                       ),
                       const SizedBox(height: 20),
 
@@ -264,4 +317,107 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+
+// ── Private Google Sign-In Button widget ──────────────────────────────────────
+
+class _GoogleSignInButton extends StatefulWidget {
+  final VoidCallback? onPressed;
+  const _GoogleSignInButton({this.onPressed});
+
+  @override
+  State<_GoogleSignInButton> createState() => _GoogleSignInButtonState();
+}
+
+class _GoogleSignInButtonState extends State<_GoogleSignInButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
+        child: OutlinedButton(
+          onPressed: widget.onPressed,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            backgroundColor: _hovered
+                ? const Color(0xFFF8F9FF)
+                : Colors.white,
+            side: BorderSide(
+              color: _hovered
+                  ? const Color(0xFF4285F4)
+                  : AppColors.divider,
+              width: 1.5,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            elevation: _hovered ? 3 : 0,
+            shadowColor: const Color(0x334285F4),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CustomPaint(painter: _GoogleLogoPainter()),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Continue with Google',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF3C4043),
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Paints the official Google 'G' logo using the four brand colours.
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final Paint p = Paint()..style = PaintingStyle.fill;
+
+    // Blue (right half of G arc)
+    p.color = const Color(0xFF4285F4);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), -0.52, 1.57, true, p);
+
+    // Green (bottom arc)
+    p.color = const Color(0xFF34A853);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 1.05, 1.57, true, p);
+
+    // Yellow (left arc)
+    p.color = const Color(0xFFFBBC05);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), 2.62, 1.57, true, p);
+
+    // Red (top arc)
+    p.color = const Color(0xFFEA4335);
+    canvas.drawArc(Rect.fromLTWH(0, 0, w, h), -2.09, 1.57, true, p);
+
+    // White centre circle (cutout)
+    p.color = Colors.white;
+    canvas.drawCircle(Offset(w / 2, h / 2), w * 0.32, p);
+
+    // White horizontal bar of the G
+    canvas.drawRect(Rect.fromLTWH(w * 0.5, h * 0.38, w * 0.5, h * 0.24), p);
+  }
+
+  @override
+  bool shouldRepaint(_GoogleLogoPainter oldDelegate) => false;
 }

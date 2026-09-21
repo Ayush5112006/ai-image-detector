@@ -1,6 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'config/firebase_options.dart';
+import 'services/api_service.dart';
 import 'theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -16,6 +19,9 @@ import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: AppFirebaseOptions.currentPlatform,
+  );
   await dotenv.load(fileName: '.env');
   final prefs = await SharedPreferences.getInstance();
   final isFirstTime = prefs.getBool('is_first_time') ?? true;
@@ -85,10 +91,12 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => SplashScreen(
-          onFinished: () {
+          onFinished: () async {
+            final loggedIn = await ApiService.isLoggedIn();
+            if (!context.mounted) return;
             Navigator.pushReplacementNamed(
               context,
-              isFirstTime ? '/onboarding' : '/login',
+              loggedIn ? '/home' : (isFirstTime ? '/onboarding' : '/login'),
             );
           },
         ),

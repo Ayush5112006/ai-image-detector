@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/profile_avatar.dart';
 
@@ -45,6 +46,8 @@ Future<void> _confirmSignOut(BuildContext context) async {
   );
 
   if (confirmed == true && context.mounted) {
+    await ApiService.clearSession();
+    if (!context.mounted) return;
     Navigator.pushReplacementNamed(context, '/login');
   }
 }
@@ -59,20 +62,94 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String _name = 'Ayush';
   String _email = 'thummarayush05@gmail.com';
+  String _totalScans = '0';
+  String _fakesFound = '0';
+  String _cleared = '0';
+  int _level = 1;
+  int _xpIntoLevel = 0;
+  int _xpForNext = 100;
+  bool _premiumActive = false;
+  bool _premiumToggling = false;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _loadFromPrefs();
+    _loadFromBackend();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
       _name = prefs.getString('profile_name') ?? _name;
       _email = prefs.getString('profile_email') ?? _email;
     });
+  }
+
+  Future<void> _loadFromBackend() async {
+    try {
+      final results = await Future.wait([
+        ApiService.me(),
+        ApiService.stats(),
+        ApiService.premiumStatus(),
+      ]);
+      if (!mounted) return;
+      final user = results[0];
+      final stats = results[1];
+      final premium = results[2];
+      setState(() {
+        _name = user['name']?.toString() ?? _name;
+        _email = user['email']?.toString() ?? _email;
+        _totalScans = (stats['totalScans'] ?? 0).toString();
+        _fakesFound = (stats['fakesFound'] ?? 0).toString();
+        _cleared = (stats['cleared'] ?? 0).toString();
+        _level = (stats['level'] ?? 1) as int;
+        _xpIntoLevel = (stats['xpIntoLevel'] ?? 0) as int;
+        _xpForNext = (stats['xpForNext'] ?? 100) as int;
+        _premiumActive = premium['active'] == true;
+      });
+    } catch (e) {
+      debugPrint('Profile backend load failed: $e');
+    }
+  }
+
+  Future<void> _togglePremium() async {
+    setState(() => _premiumToggling = true);
+    try {
+      if (_premiumActive) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Subscription is active and can only be canceled via the web dashboard.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final premium = await ApiService.activatePremium();
+        if (!mounted) return;
+        setState(() => _premiumActive = premium['active'] == true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Welcome to Premium! Enjoy unlimited scans.'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _premiumToggling = false);
+    }
   }
 
   @override
@@ -142,8 +219,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    const _ProfileStatItem(
-                      num: '0',
+                    _ProfileStatItem(
+                      num: _totalScans,
                       name: 'Total Scans',
                       color: AppColors.primary,
                     ),
@@ -152,8 +229,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       height: 40,
                       color: AppColors.divider,
                     ),
-                    const _ProfileStatItem(
-                      num: '0',
+                    _ProfileStatItem(
+                      num: _fakesFound,
                       name: 'Fakes Found',
                       color: AppColors.danger,
                     ),
@@ -162,8 +239,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       height: 40,
                       color: AppColors.divider,
                     ),
-                    const _ProfileStatItem(
-                      num: '0',
+                    _ProfileStatItem(
+                      num: _cleared,
                       name: 'Cleared',
                       color: AppColors.success,
                     ),
@@ -177,20 +254,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Level 1 Analyst',
-                          style: TextStyle(
+                          'Level $_level Analyst',
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
                           ),
                         ),
                         Text(
-                          '0% to next',
-                          style: TextStyle(
+                          '$_xpIntoLevel% to next',
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
@@ -201,10 +278,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: const LinearProgressIndicator(
-                        value: 0.08,
-                        backgroundColor: Color(0xFFEFF1F5),
-                        valueColor: AlwaysStoppedAnimation<Color>(
+                      child: LinearProgressIndicator(
+                        value:
+                            (_xpIntoLevel / (_xpForNext == 0 ? 100 : _xpForNext))
+                                .clamp(0.0, 1.0),
+                        backgroundColor: const Color(0xFFEFF1F5),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
                           AppColors.primary,
                         ),
                         minHeight: 8,
@@ -217,6 +296,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontSize: 11,
                         color: AppColors.textSecondary,
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Premium card
+              AppCard(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: _premiumActive
+                            ? AppColors.successBg
+                            : const Color(0xFFFFF3CD),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Icon(
+                        _premiumActive
+                            ? Icons.workspace_premium
+                            : Icons.workspace_premium_outlined,
+                        color: _premiumActive
+                            ? AppColors.success
+                            : const Color(0xFFB45309),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _premiumActive
+                                ? 'Premium Active'
+                                : 'Go Premium',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _premiumActive
+                                ? 'Unlimited scans unlocked'
+                                : 'Unlimited scans · Priority analysis',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      height: 36,
+                      child: _premiumActive
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.successBg,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'ACTIVE',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                            )
+                          : ElevatedButton(
+                              onPressed: _premiumToggling
+                                  ? null
+                                  : _togglePremium,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _premiumToggling
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'UPGRADE',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
                     ),
                   ],
                 ),
