@@ -14,18 +14,6 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
-  late final List<Widget> _screens;
-
-  @override
-  void initState() {
-    super.initState();
-    _screens = [
-      HomeScreen(onStartDetection: () => _onItemTapped(1)),
-      const DetectScreen(),
-      HistoryScreen(onStartDetection: () => _onItemTapped(1)),
-      const ProfileScreen(),
-    ];
-  }
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -35,7 +23,18 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: IndexedStack(index: _selectedIndex, children: _screens),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          HomeScreen(onStartDetection: () => _onItemTapped(1)),
+          const DetectScreen(),
+          HistoryScreen(
+            active: _selectedIndex == 2,
+            onStartDetection: () => _onItemTapped(1),
+          ),
+          const ProfileScreen(),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(

@@ -4,10 +4,14 @@ import '../theme.dart';
 import '../widgets/profile_avatar.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key, this.onStartDetection});
+  const HistoryScreen({super.key, this.onStartDetection, this.active = true});
 
   /// Switches to the Detect tab when the user taps the CTA in the empty state.
   final VoidCallback? onStartDetection;
+
+  /// Whether this tab is the one currently visible. When it flips to
+  /// `true`, the history silently reloads so newly-run scans appear.
+  final bool active;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -31,16 +35,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   @override
+  void didUpdateWidget(HistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) {
+      _loadDetections(showLoader: false);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadDetections() async {
-    setState(() {
-      _loading = true;
+  Future<void> _loadDetections({bool showLoader = true}) async {
+    if (showLoader) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    } else {
       _error = null;
-    });
+    }
     try {
       final detections = await ApiService.getDetections();
       if (!mounted) return;
