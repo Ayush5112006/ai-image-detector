@@ -58,8 +58,14 @@ async function mlFetch(path, formData, requestId) {
 /** Sends media bytes to the FastAPI ML service and returns a normalized result. */
 export async function analyzeMedia({ bytes, filename, mimetype, requestId }) {
   const mediaType = mimetype?.startsWith('video') ? 'video' : 'image';
-  if (process.env.MOCK_ML === '1') {
-    logger.info('ML call mocked', { requestId, mediaType, filename, mock: true });
+  // Explicit mock (MOCK_ML=1) OR no ML service configured: use the
+  // deterministic mock so servers without a real FastAPI backend still
+  // return predictions instead of failing.
+  if (process.env.MOCK_ML === '1' || !getFastApiUrl()) {
+    logger.info('ML call mocked', {
+      requestId, mediaType, filename,
+      mock: process.env.MOCK_ML === '1' ? 'explicit' : 'no-ml-configured',
+    });
     const p = mockPrediction(bytes, filename);
     return { ...p, mediaType };
   }

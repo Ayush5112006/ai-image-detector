@@ -38,4 +38,15 @@ export async function connectDb(uri = process.env.MONGODB_URI) {
   logger.info('MongoDB connected');
 }
 
+// Serverless-compatible connection bootstrap.
+// Long-running processes (server.js) and serverless runtimes (Vercel) both
+// load this module; starting the Mongo connection here ensures queries never
+// buffer against the default localhost host. Without this, serverless
+// deployments returned 500 INTERNAL_ERROR after every DB-bound query timed out.
+if (process.env.MONGODB_URI) {
+  connectDb().catch((err) =>
+    logger.error('initial MongoDB connection failed', { error: err.message }),
+  );
+}
+
 export default app;
