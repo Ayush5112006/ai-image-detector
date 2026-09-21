@@ -7,6 +7,7 @@ import { User } from '../models/User.model.js';
 import { PasswordReset } from '../models/PasswordReset.model.js';
 import { authRequired } from '../middleware/auth.js';
 import { sendOtpEmail, sendResetOtpEmail } from '../services/email.service.js';
+import { sendSuccess, sendError, ErrorCodes, sendCreated } from '../utils/response.js';
 
 const router = Router();
 
@@ -23,18 +24,18 @@ function sanitize(user) {
 }
 
 router.post('/send-otp', async (req, res, next) => {
+  const { email, otp } = req.body || {};
+  if (!email || !otp) {
+    return sendError(res, 400, ErrorCodes.VALIDATION, 'Email and OTP are required');
+  }
   try {
-    const { email, otp } = req.body || {};
-    if (!email || !otp) {
-      return res.status(400).json({ message: 'Email and OTP are required' });
-    }
     await sendOtpEmail({ toEmail: String(email).trim(), otp: String(otp) });
-    res.json({ message: 'OTP sent' });
+    return sendSuccess(res, 'OTP sent', { message: 'OTP sent' });
   } catch (err) {
-    console.error('send-otp failed:', err.message);
-    res.status(502).json({
-      message: `Could not send the verification email: ${err.message}`,
-    });
+    return sendError(
+      res, 502, ErrorCodes.EMAIL_ERROR,
+      'Could not send the verification email. Please try again later.',
+    );
   }
 });
 
@@ -42,17 +43,16 @@ router.post('/forgot-password', async (req, res, next) => {
   try {
     const { email } = req.body || {};
     if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Email is required');
     }
     const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail });
 
     // Respond generically to avoid revealing whether an account exists.
+    const genericMessage =
+      'If an account exists for that email, a reset code has been sent.';
     if (!user) {
-      return res.json({
-        message:
-          'If an account exists for that email, a reset code has been sent.',
-      });
+      return sendSuccess(res, genericMessage, { message: genericMessage });
     }
 
     const otp = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
@@ -63,22 +63,19 @@ router.post('/forgot-password', async (req, res, next) => {
       { email: normalizedEmail, used: false },
       { $set: { used: true } },
     );
-    await PasswordReset.create({
-      email: normalizedEmail,
-      otpHash,
-      expiresAt,
-    });
-    await sendResetOtpEmail({ toEmail: normalizedEmail, otp });
+    await PasswordReset.create({ email: normalizedEmail, otpHash, expiresAt });
+    try {
+      await sendResetOtpEmail({ toEmail: normalizedEmail, otp });
+    } catch (err) {
+      return sendError(
+        res, 502, ErrorCodes.EMAIL_ERROR,
+        'Could not send the reset code. Please try again later.',
+      );
+    }
 
-    res.json({
-      message:
-        'If an account exists for that email, a reset code has been sent.',
-    });
+    return sendSuccess(res, genericMessage, { message: genericMessage });
   } catch (err) {
-    console.error('forgot-password failed:', err.message);
-    res
-      .status(502)
-      .json({ message: `Could not send the reset code: ${err.message}` });
+    next(err);
   }
 });
 
@@ -86,12 +83,13 @@ router.post('/reset-password', async (req, res, next) => {
   try {
     const { email, otp, newPassword } = req.body || {};
     if (!email || !otp) {
-      return res.status(400).json({ message: 'Email and reset code are required' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Email and reset code are required');
     }
     if (!newPassword || String(newPassword).length < 6) {
-      return res
-        .status(400)
-        .json({ message: 'New password must be at least 6 characters' });
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'New password must be at least 6 characters',
+      );
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
@@ -102,19 +100,20 @@ router.post('/reset-password', async (req, res, next) => {
     }).sort({ createdAt: -1 });
 
     if (!reset) {
-      return res
-        .status(400)
-        .json({ message: 'Invalid or expired code. Please request a new one.' });
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'Invalid or expired code. Please request a new one.',
+      );
     }
 
     const ok = await bcrypt.compare(String(otp), reset.otpHash);
     if (!ok) {
-      return res.status(400).json({ message: 'Invalid reset code.' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Invalid reset code.');
     }
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(404).json({ message: 'No account found for this email.' });
+      return sendError(res, 404, ErrorCodes.NOT_FOUND, 'No account found for this email.');
     }
 
     const hashed = await bcrypt.hash(String(newPassword), 10);
@@ -124,10 +123,9 @@ router.post('/reset-password', async (req, res, next) => {
       { $set: { used: true } },
     );
 
-    res.json({ message: 'Password updated. You can now sign in.' });
+    return sendSuccess(res, 'Password updated. You can now sign in.');
   } catch (err) {
-    console.error('reset-password failed:', err.message);
-    res.status(500).json({ message: 'Server error. Please try again later.' });
+    next(err);
   }
 });
 
@@ -135,21 +133,15 @@ router.post('/register', async (req, res, next) => {
   try {
     const { name, email, password } = req.body || {};
     if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ message: 'Name, email and password are required' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Name, email and password are required');
     }
     if (String(password).length < 6) {
-      return res
-        .status(400)
-        .json({ message: 'Password must be at least 6 characters' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Password must be at least 6 characters');
     }
     const normalizedEmail = String(email).toLowerCase().trim();
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
-      return res
-        .status(409)
-        .json({ message: 'An account with this email already exists' });
+      return sendError(res, 409, ErrorCodes.CONFLICT, 'An account with this email already exists');
     }
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
@@ -157,7 +149,11 @@ router.post('/register', async (req, res, next) => {
       email: normalizedEmail,
       password: hashed,
     });
-    res.status(201).json({ token: signToken(user), user: sanitize(user) });
+    return sendCreated(
+      res,
+      'Account created successfully.',
+      { token: signToken(user), user: sanitize(user) },
+    );
   } catch (err) {
     next(err);
   }
@@ -167,26 +163,27 @@ router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Email and password are required');
     }
-    const user = await User.findOne({
-      email: String(email).toLowerCase().trim(),
-    });
+    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'Invalid email or password');
     }
     const ok = await bcrypt.compare(String(password), user.password);
     if (!ok) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'Invalid email or password');
     }
-    res.json({ token: signToken(user), user: sanitize(user) });
+    return sendSuccess(res, 'Signed in successfully.', {
+      token: signToken(user),
+      user: sanitize(user),
+    });
   } catch (err) {
     next(err);
   }
 });
 
 router.get('/me', authRequired, (req, res) => {
-  res.json({ user: sanitize(req.user) });
+  sendSuccess(res, 'Profile loaded.', { user: sanitize(req.user) });
 });
 
 router.patch('/me', authRequired, async (req, res, next) => {
@@ -199,13 +196,13 @@ router.patch('/me', authRequired, async (req, res, next) => {
       }
     }
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: 'Nothing to update' });
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Nothing to update');
     }
     const user = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
       runValidators: true,
     }).select('-password');
-    res.json({ user });
+    return sendSuccess(res, 'Profile updated.', { user });
   } catch (err) {
     next(err);
   }

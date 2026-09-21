@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema(
       active: { type: Boolean, default: false },
       expiresAt: { type: Date, default: null },
     },
+    isAdmin: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

@@ -6,7 +6,6 @@ const detectionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     modelId: { type: String, required: true },
     modelName: { type: String, default: '' },
@@ -22,5 +21,11 @@ const detectionSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+// Composite indexes targeted at the two hottest queries:
+//  1. history screen — a user's detections, newest first
+//  2. stats screen   — counts per user grouped by verdict
+detectionSchema.index({ userId: 1, createdAt: -1 });
+detectionSchema.index({ userId: 1, verdict: 1 });
 
 export const Detection = mongoose.model('Detection', detectionSchema);

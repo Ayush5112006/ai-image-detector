@@ -10,6 +10,6 @@ const passwordResetSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-passwordResetSchema.index({ email: 1, used: 1, expiresAt: 1 });
+passwordResetSchema.index({ email: 1, used: 1, createdAt: -1 });
 
 export const PasswordReset = mongoose.model('PasswordReset', passwordResetSchema);
