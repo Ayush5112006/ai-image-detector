@@ -1,8 +1,11 @@
 import { logger } from '../utils/logger.js';
 import { AppError, ErrorCodes } from '../utils/response.js';
 
-const FASTAPI_URL = (process.env.FASTAPI_URL || '').replace(/\/+$/, '');
 const ML_TIMEOUT_MS = Number(process.env.ML_TIMEOUT_MS || 120000);
+
+function getFastApiUrl() {
+  return (process.env.FASTAPI_URL || '').replace(/\/+$/, '');
+}
 
 /* Deterministic pseudo-result used when the ML service is absent
  * (MOCK_ML=1) — useful for local development and automated tests. */
@@ -20,6 +23,7 @@ function mockPrediction(bytes, filename) {
 }
 
 async function mlFetch(path, formData, requestId) {
+  const FASTAPI_URL = getFastApiUrl();
   if (!FASTAPI_URL) {
     throw new AppError(503, ErrorCodes.ML_SERVICE_UNAVAILABLE, 'Detection service is not configured.');
   }
@@ -70,5 +74,7 @@ export async function analyzeMedia({ bytes, filename, mimetype, requestId }) {
     mediaType,
     durationMs: Date.now() - started,
   });
-  return { ...data, mediaType };
+  // FastAPI returns { success, message, data: { … } }; normalize to the payload.
+  const payload = data?.data ?? data;
+  return { ...payload, mediaType };
 }

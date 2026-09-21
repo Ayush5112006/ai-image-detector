@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import { Detection } from '../models/Detection.model.js';
 import { authRequired } from '../middleware/auth.js';
-import { uploadMedia } from '../middleware/upload.js';
+import { uploadMedia, validateMediaSize } from '../middleware/upload.js';
 import { analyzeMedia } from '../services/mlClient.service.js';
 import { sendSuccess, sendError, ErrorCodes, sendCreated } from '../utils/response.js';
 import { logger } from '../utils/logger.js';
@@ -78,6 +78,10 @@ router.post('/analyze', uploadMedia.single('file'), async (req, res, next) => {
     }
     if (req.file.size === 0) {
       return sendError(res, 400, ErrorCodes.VALIDATION, 'The uploaded file is empty.');
+    }
+    const sizeError = validateMediaSize(req.file);
+    if (sizeError) {
+      return sendError(res, sizeError.status, sizeError.code, sizeError.message);
     }
 
     const modelId = String(req.body?.modelId || '01');

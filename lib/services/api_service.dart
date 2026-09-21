@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,9 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 /// Error thrown whenever the backend returns a non-2xx status.
+/// [code] mirrors the server's `error.code` (HTTP_TIMEOUT / NETWORK_ERROR
+/// are client-side synthetic codes).
 class ApiException implements Exception {
   final String message;
-  const ApiException(this.message);
+  final String code;
+  const ApiException(this.message, {this.code = 'UNKNOWN'});
 
   @override
   String toString() => message;
@@ -20,6 +25,8 @@ class ApiService {
   ApiService._();
 
   static const _tokenKey = 'auth_token';
+  static const _requestTimeout = Duration(seconds: 20);
+  static const _uploadTimeout = Duration(seconds: 120);
   static String? _token;
   static Map<String, dynamic>? _cachedUser;
 
@@ -153,6 +160,59 @@ class ApiService {
     return data['detection'] as Map<String, dynamic>? ?? {};
   }
 
+  /// Uploads media and runs the full backend pipeline:
+  /// Node backend → FastAPI → HuggingFace model → MongoDB.
+  ///
+  /// [client] may be supplied by the caller so the request can be aborted
+  /// (via `client.close()`) to support user cancellation.
+  static Future<Map<String, dynamic>> analyzeMediaFile({
+    required String modelId,
+    required String fileName,
+    required Uint8List bytes,
+    http.Client? client,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/api/detections/analyze');
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['modelId'] = modelId
+      ..files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: fileName),
+      );
+    final token = await _loadToken();
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+
+    final active = client ?? http.Client();
+    try {
+      final streamed = await active.send(request).timeout(_uploadTimeout);
+      final res = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
+      final data = _decodeBody(res);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return data ?? {};
+      }
+      final message = _extractMessage(data);
+      if (res.statusCode == 401) await clearSession();
+      throw ApiException(message, code: _extractCode(data));
+    } on TimeoutException {
+      throw const ApiException(
+        'The detection service took too long to respond. Please try again.',
+        code: 'HTTP_TIMEOUT',
+      );
+    } on http.ClientException catch (_) {
+      throw const ApiException(
+        'Cannot reach the server. Check your internet connection.',
+        code: 'NETWORK_ERROR',
+      );
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException(
+        'Cannot reach the server. Check your internet connection.',
+        code: 'NETWORK_ERROR',
+      );
+    } finally {
+      if (client == null) active.close();
+    }
+  }
+
   static Future<void> deleteDetection(String id) =>
       _request('DELETE', '/api/detections/$id');
 
@@ -189,36 +249,71 @@ class ApiService {
     try {
       switch (method) {
         case 'POST':
-          res = await http.post(uri,
-              headers: headers, body: jsonEncode(body ?? {}));
+          res = await http
+              .post(uri, headers: headers, body: jsonEncode(body ?? {}))
+              .timeout(_requestTimeout);
         case 'PATCH':
-          res = await http.patch(uri,
-              headers: headers, body: jsonEncode(body ?? {}));
+          res = await http
+              .patch(uri, headers: headers, body: jsonEncode(body ?? {}))
+              .timeout(_requestTimeout);
         case 'DELETE':
-          res = await http.delete(uri, headers: headers);
+          res = await http.delete(uri, headers: headers).timeout(_requestTimeout);
         default:
-          res = await http.get(uri, headers: headers);
+          res = await http.get(uri, headers: headers).timeout(_requestTimeout);
       }
+    } on TimeoutException {
+      throw const ApiException(
+        'The server took too long to respond. Please try again.',
+        code: 'HTTP_TIMEOUT',
+      );
+    } on http.ClientException catch (_) {
+      throw const ApiException(
+        'Cannot reach the server. Check your internet connection.',
+        code: 'NETWORK_ERROR',
+      );
     } catch (_) {
       throw const ApiException(
-        'Cannot reach the server. Make sure the backend is running.',
+        'Cannot reach the server. Check your internet connection.',
+        code: 'NETWORK_ERROR',
       );
     }
 
-    Map<String, dynamic>? data;
-    if (res.body.isNotEmpty) {
-      try {
-        data = jsonDecode(res.body) as Map<String, dynamic>;
-      } catch (_) {}
-    }
-
+    final data = _decodeBody(res);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return data ?? {};
     }
 
-    final message = data?['message']?.toString() ??
-        'Request failed (HTTP ${res.statusCode})';
+    final message = _extractMessage(data);
     if (res.statusCode == 401) await clearSession();
-    throw ApiException(message);
+    throw ApiException(message, code: _extractCode(data));
+  }
+
+  static Map<String, dynamic>? _decodeBody(http.Response res) {
+    final text = res.bodyBytes.isEmpty ? '' : utf8.decode(res.bodyBytes);
+    if (text.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {
+      // Non-JSON body — fall through to a generic message.
+    }
+    return null;
+  }
+
+  static String _extractMessage(Map<String, dynamic>? data) {
+    if (data == null) return 'Something went wrong. Please try again.';
+    final msg = data['message']?.toString();
+    if (msg != null && msg.isNotEmpty) return msg;
+    final err = data['error'];
+    if (err is Map && err['message'] != null) {
+      return err['message'].toString();
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
+  static String _extractCode(Map<String, dynamic>? data) {
+    final err = data?['error'];
+    if (err is Map && err['code'] != null) return err['code'].toString();
+    return data?['code']?.toString() ?? 'UNKNOWN';
   }
 }

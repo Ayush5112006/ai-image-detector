@@ -51,9 +51,11 @@ export const uploadVideo = multer({
 });
 
 // Accepts either an image or a video for the same endpoint.
+// A generous hard cap protects against memory abuse; the env-driven per-type
+// limits are enforced in the route so they can be tuned at runtime.
 export const uploadMedia = multer({
   storage,
-  limits: { fileSize: Number(process.env.MAX_VIDEO_SIZE_MB || 50) * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (toMimeType(file.originalname, file.mimetype) === null) {
       return cb(new AppError(400, ErrorCodes.INVALID_FILE_TYPE, 'Unsupported file type.'));
@@ -61,3 +63,15 @@ export const uploadMedia = multer({
     cb(null, true);
   },
 });
+
+/** Enforce env-configured per-type limits (returns an AppError or null). */
+export function validateMediaSize(file) {
+  const type = toMimeType(file.originalname, file.mimetype);
+  const maxMb = type === 'video'
+    ? Number(process.env.MAX_VIDEO_SIZE_MB || 50)
+    : Number(process.env.MAX_IMAGE_SIZE_MB || 10);
+  if (file.size > maxMb * 1024 * 1024) {
+    return new AppError(413, ErrorCodes.FILE_TOO_LARGE, 'File is too large.');
+  }
+  return null;
+}

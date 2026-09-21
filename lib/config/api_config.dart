@@ -1,14 +1,20 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// Central API configuration for ChitraVision AI.
 ///
-/// Override the backend URL at build time with:
-///   flutter run --dart-define=API_BASE_URL=http://192.168.1.10:4000
+/// The backend URL is resolved in this priority order:
+///   1. --dart-define=API_BASE_URL=...  (build-time override)
+///   2. API_BASE_URL in the app `.env` file
+///   3. the production default
 class ApiConfig {
   ApiConfig._();
 
-  static const String _fromEnv = String.fromEnvironment('API_BASE_URL');
+  static const String _fromDartDefine = String.fromEnvironment('API_BASE_URL');
 
-  /// Backend for the app. Override at build time with:
-  ///   flutter run --dart-define=API_BASE_URL=http://localhost:4000
-  static final String baseUrl =
-      _fromEnv.isNotEmpty ? _fromEnv : 'https://ai-image-detector-ebon.vercel.app';
+  static String get baseUrl {
+    if (_fromDartDefine.isNotEmpty) return _fromDartDefine;
+    final fromEnvFile = dotenv.maybeGet('API_BASE_URL', fallback: '');
+    if (fromEnvFile != null && fromEnvFile.isNotEmpty) return fromEnvFile;
+    return 'https://ai-image-detector-ebon.vercel.app';
+  }
 }

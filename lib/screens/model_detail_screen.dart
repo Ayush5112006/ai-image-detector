@@ -1,12 +1,10 @@
 import 'dart:ui';
-import 'dart:convert';
 import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 
@@ -19,13 +17,16 @@ class ModelDetailScreen extends StatefulWidget {
   State<ModelDetailScreen> createState() => _ModelDetailScreenState();
 }
 
-class _ModelDetailScreenState extends State<ModelDetailScreen> {
+class _ModelDetailScreenState extends State<ModelDetailScreen>
+    with SingleTickerProviderStateMixin {
   bool _isMediaSelected = false;
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
   bool _isAnalyzing = false;
-  double _analysisProgress = 0.0;
+  bool _cancelled = false;
+  _DetectionStage _stage = _DetectionStage.idle;
   String? _resultMessage;
+  http.Client? _activeClient;
 
   Map<String, dynamic> _getModelConfig() {
     switch (widget.modelId) {
@@ -65,64 +66,131 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
     }
   }
 
-  void _recordResult(String message, Map<String, dynamic> config) {
-    setState(() {
-      _isAnalyzing = false;
-      _resultMessage = message;
-    });
-    _saveDetection(message, config);
+  static const List<_DetectionStage> _milestones = [
+    _DetectionStage.uploading,
+    _DetectionStage.processing,
+    _DetectionStage.analyzing,
+    _DetectionStage.generating,
+  ];
+
+  String _stageLabel(_DetectionStage stage) {
+    switch (stage) {
+      case _DetectionStage.uploading:
+        return 'Uploading…';
+      case _DetectionStage.processing:
+        return 'Processing…';
+      case _DetectionStage.analyzing:
+        return 'Analyzing…';
+      case _DetectionStage.generating:
+        return 'Generating Result…';
+      case _DetectionStage.completed:
+        return 'Completed';
+      case _DetectionStage.error:
+        return 'Something went wrong';
+      case _DetectionStage.idle:
+        return 'Ready';
+    }
   }
 
-  Future<void> _saveDetection(
-    String message,
-    Map<String, dynamic> config,
-  ) async {
-    final bool isAI;
-    if (message.contains('Real') || message.contains('Unaltered')) {
-      isAI = false;
-    } else {
-      isAI = true;
-    }
-    final verdict = isAI ? 'AI' : 'Real';
-
-    double confidence = 0;
-    final match = RegExp(r'([\d.]+)\s*%').firstMatch(message);
-    if (match != null) {
-      confidence = double.tryParse(match.group(1)!) ?? 0;
-    }
-
-    final String category;
-    switch (widget.modelId) {
-      case '02':
-        category = 'face';
-      case '03':
-        category = 'video';
-      case '04':
-        category = 'content';
+  IconData _stageIcon(_DetectionStage stage) {
+    switch (stage) {
+      case _DetectionStage.uploading:
+        return Icons.cloud_upload_outlined;
+      case _DetectionStage.processing:
+        return Icons.settings_suggest_outlined;
+      case _DetectionStage.analyzing:
+        return Icons.psychology_outlined;
+      case _DetectionStage.generating:
+        return Icons.auto_awesome_outlined;
       default:
-        category = 'image';
+        return Icons.check_circle_outline;
     }
+  }
 
-    try {
-      await ApiService.createDetection(
-        modelId: widget.modelId,
-        modelName: config['title'].toString(),
-        category: category,
-        fileName: _selectedFileName ?? '',
-        verdict: verdict,
-        confidence: confidence,
-        resultLabel: message,
-      );
-      if (!mounted) return;
+  void _showResult(String message) {
+    setState(() {
+      _isAnalyzing = false;
+      _stage = _DetectionStage.completed;
+      _resultMessage = message;
+      _activeClient?.close();
+      _activeClient = null;
+    });
+  }
+
+  void _showFailure(String message) {
+    setState(() {
+      _isAnalyzing = false;
+      _stage = _DetectionStage.error;
+      _resultMessage = message;
+      _activeClient?.close();
+      _activeClient = null;
+    });
+  }
+
+  void _cancelAnalysis() {
+    _cancelled = true;
+    _activeClient?.close();
+    if (mounted) {
+      setState(() {
+        _isAnalyzing = false;
+        _stage = _DetectionStage.idle;
+        _resultMessage = null;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Scan saved to your history'),
-          backgroundColor: AppColors.success,
+          content: Text('Analysis cancelled. You can try again.'),
+          backgroundColor: AppColors.warning,
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _startAnalysis() async {
+    if (_isAnalyzing || _selectedFileBytes == null) return;
+    _cancelled = false;
+    _activeClient = http.Client();
+    setState(() {
+      _isAnalyzing = true;
+      _resultMessage = null;
+      _stage = _DetectionStage.uploading;
+    });
+
+    // Gentle per-stage pacing so the user always sees progress.
+    const step = Duration(milliseconds: 550);
+    for (final milestone in _milestones) {
+      if (_cancelled || !mounted) return;
+      setState(() => _stage = milestone);
+      await Future.delayed(step);
+    }
+
+    if (_cancelled || !mounted) return;
+    setState(() => _stage = _DetectionStage.analyzing);
+
+    try {
+      final data = await ApiService.analyzeMediaFile(
+        modelId: widget.modelId,
+        fileName: _selectedFileName ?? 'media',
+        bytes: _selectedFileBytes!,
+        client: _activeClient,
+      );
+      if (_cancelled || !mounted) return;
+
+      // The backend persists the scan; build the user-facing result text.
+      final prediction =
+          data['prediction'] as Map<String, dynamic>? ?? data['detection'] as Map<String, dynamic>?;
+      final label = prediction?['label']?.toString() ?? 'Completed';
+      final conf = (prediction?['confidence'] is num)
+          ? (prediction!['confidence'] as num).toDouble()
+          : 0.0;
+
+      _showResult('$label (${conf.toStringAsFixed(1)}% Confidence)');
     } on ApiException catch (e) {
-      debugPrint('Failed to save detection: $e');
+      if (_cancelled || !mounted) return;
+      _showFailure(e.message);
+    } catch (e) {
+      if (_cancelled || !mounted) return;
+      _showFailure('Could not complete the analysis. Please try again.');
     }
   }
 
@@ -192,221 +260,6 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
         ),
       );
     }
-  }
-
-  void _startAnalysis() async {
-    final config = _getModelConfig();
-    setState(() {
-      _isAnalyzing = true;
-      _analysisProgress = 0.0;
-    });
-
-    if (widget.modelId == '01') {
-      if (_selectedFileBytes == null) {
-        setState(() {
-          _isAnalyzing = false;
-          _resultMessage = 'Error: No file data available.';
-        });
-        return;
-      }
-
-      // Simulate analysis progress animation to 50%
-      for (int i = 1; i <= 5; i++) {
-        await Future.delayed(const Duration(milliseconds: 150));
-        if (!mounted) return;
-        setState(() {
-          _analysisProgress = i / 10.0;
-        });
-      }
-
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final hfToken = prefs.getString('hf_token') ?? '';
-        final headers = <String, String>{
-          'Content-Type': 'application/octet-stream',
-        };
-        if (hfToken.isNotEmpty) {
-          headers['Authorization'] = 'Bearer $hfToken';
-        }
-
-        final url = Uri.parse('https://api-inference.huggingface.co/models/Ateeqq/ai-vs-human-image-detector');
-        final response = await http.post(
-          url,
-          headers: headers,
-          body: _selectedFileBytes,
-        );
-
-        if (!mounted) return;
-
-        // Finish progress animation to 100%
-        for (int i = 6; i <= 10; i++) {
-          setState(() {
-            _analysisProgress = i / 10.0;
-          });
-          await Future.delayed(const Duration(milliseconds: 50));
-        }
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          List<dynamic> predictions = [];
-          if (data is List) {
-            if (data.isNotEmpty && data[0] is List) {
-              predictions = data[0];
-            } else {
-              predictions = data;
-            }
-          }
-
-          if (predictions.isNotEmpty) {
-            Map<String, dynamic>? bestPrediction;
-            double maxScore = -1.0;
-            for (var pred in predictions) {
-              if (pred is Map && pred.containsKey('score')) {
-                final double score = (pred['score'] as num).toDouble();
-                if (score > maxScore) {
-                  maxScore = score;
-                  bestPrediction = Map<String, dynamic>.from(pred);
-                }
-              }
-            }
-
-            if (bestPrediction != null) {
-              final String rawLabel = bestPrediction['label'] ?? '';
-              final String label = (rawLabel.toLowerCase() == 'ai' || rawLabel.toLowerCase() == 'label_0')
-                  ? 'AI Generated'
-                  : 'Real / Human-made';
-              final double scorePercent = maxScore * 100;
-              _recordResult(
-                '$label (${scorePercent.toStringAsFixed(1)}% Confidence)',
-                config,
-              );
-            } else {
-              setState(() {
-                _isAnalyzing = false;
-                _resultMessage = 'Error parsing API response.';
-              });
-            }
-          } else {
-            setState(() {
-              _isAnalyzing = false;
-              _resultMessage = 'No predictions returned.';
-            });
-          }
-        } else {
-          final errorBody = response.body;
-          String errorMsg = 'Inference failed (HTTP ${response.statusCode})';
-          try {
-            final errData = json.decode(errorBody);
-            if (errData is Map && errData.containsKey('error')) {
-              errorMsg = errData['error'].toString();
-            }
-          } catch (_) {}
-          setState(() {
-            _isAnalyzing = false;
-            _resultMessage = errorMsg;
-          });
-        }
-      } catch (e) {
-        final prefs = await SharedPreferences.getInstance();
-        final hfToken = prefs.getString('hf_token') ?? '';
-        String errMsg = 'Error during API call: $e';
-        if (hfToken.isEmpty && e.toString().contains('Failed to fetch')) {
-          errMsg += '\n\nNote: A Hugging Face API Read Token is required on browsers due to CORS. Click the key icon at the top right to set your token.';
-        }
-        setState(() {
-          _isAnalyzing = false;
-          _resultMessage = errMsg;
-        });
-      }
-    } else {
-      // Simulate analysis progress animation
-      for (int i = 1; i <= 10; i++) {
-        await Future.delayed(const Duration(milliseconds: 300));
-        if (!mounted) return;
-        setState(() {
-          _analysisProgress = i / 10.0;
-        });
-      }
-
-      _recordResult(
-        widget.modelId == '02'
-            ? 'Real / Unaltered (98.7% Confidence)'
-            : 'Deepfake Detected! (87.5% Confidence)',
-        config,
-      );
-    }
-  }
-
-  void _showTokenInputDialog(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentToken = prefs.getString('hf_token') ?? '';
-    final controller = TextEditingController(text: currentToken);
-
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Text('🤗 ', style: TextStyle(fontSize: 24)),
-              Text(
-                'Hugging Face Token',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter your Hugging Face API Read Token to enable direct inference from the browser (bypasses CORS restrictions).',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'HF API Token',
-                  hintText: 'hf_...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  prefixIcon: const Icon(Icons.key),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await prefs.setString('hf_token', controller.text.trim());
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Hugging Face Token saved successfully!'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF007AFF),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showModelInfoModal(BuildContext context) {
@@ -709,6 +562,112 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
     );
   }
 
+  Widget _buildAnalyzingState() {
+    final current = _milestones.indexOf(_stage);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 84,
+          height: 84,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                strokeWidth: 6,
+                backgroundColor: AppColors.surfaceAlt,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+              Icon(_stageIcon(_stage), color: AppColors.primary, size: 30),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _isMediaSelected ? _stageLabel(_stage) : 'Preparing…',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          widget.modelId == '03'
+              ? 'Analyzing frames — this can take a while for long videos'
+              : 'Running the deepfake detection model',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < _milestones.length; i++) ...[
+              if (i > 0)
+                Container(
+                  width: 22,
+                  height: 1.5,
+                  color: i <= current
+                      ? AppColors.primary.withValues(alpha: 0.5)
+                      : AppColors.divider,
+                ),
+              Column(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: i < current
+                        ? AppColors.primary
+                        : i == current
+                            ? AppColors.primary.withValues(alpha: 0.15)
+                            : AppColors.surfaceAlt,
+                    child: i < current
+                        ? const Icon(Icons.check, size: 15, color: Colors.white)
+                        : i == current
+                            ? const SizedBox(
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : const Icon(Icons.circle, size: 8, color: AppColors.textHint),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: 58,
+                    child: Text(
+                      _stageLabel(_milestones[i]).replaceAll('…', ''),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 18),
+        TextButton.icon(
+          onPressed: _cancelAnalysis,
+          icon: const Icon(Icons.close, size: 18, color: AppColors.danger),
+          label: const Text(
+            'Cancel',
+            style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildResultState() {
     final bool isReal = _resultMessage!.contains('Real');
     final Color resultColor = isReal ? AppColors.success : AppColors.danger;
@@ -807,30 +766,6 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
         centerTitle: false,
         actions: widget.modelId == '01'
             ? [
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFE0E0E0)),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.vpn_key_outlined, color: Color(0xFF007AFF), size: 20),
-                      padding: EdgeInsets.zero,
-                      onPressed: () => _showTokenInputDialog(context),
-                    ),
-                  ),
-                ),
                 Padding(
                   padding: const EdgeInsets.only(right: 16.0),
                   child: Container(
@@ -931,38 +866,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Center(
                       child: _isAnalyzing
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 80,
-                                  height: 80,
-                                  child: CircularProgressIndicator(
-                                    value: _analysisProgress,
-                                    strokeWidth: 6,
-                                    backgroundColor: AppColors.surfaceAlt,
-                                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                Text(
-                                  'Analyzing Media... ${( _analysisProgress * 100).toInt()}%',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Scanning frame signatures',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            )
+                          ? _buildAnalyzingState()
                           : _resultMessage != null
                               ? _buildResultState()
                               : _isMediaSelected
@@ -1082,6 +986,17 @@ class _ModelDetailScreenState extends State<ModelDetailScreen> {
       ),
     );
   }
+}
+
+/// Processing milestones shown while a detection runs.
+enum _DetectionStage {
+  idle,
+  uploading,
+  processing,
+  analyzing,
+  generating,
+  completed,
+  error,
 }
 
 class DashedBorderPainter extends CustomPainter {
