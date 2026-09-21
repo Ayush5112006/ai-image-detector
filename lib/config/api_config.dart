@@ -7,6 +7,8 @@ class ApiConfig {
 
   static const String _fromEnv = String.fromEnvironment('API_BASE_URL');
 
+  /// Backend for the app. Override at build time with:
+  ///   flutter run --dart-define=API_BASE_URL=http://localhost:4000
   static final String baseUrl =
-      _fromEnv.isNotEmpty ? _fromEnv : 'http://localhost:4000';
+      _fromEnv.isNotEmpty ? _fromEnv : 'https://ai-image-detector-ebon.vercel.app';
 }

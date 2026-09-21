@@ -104,6 +104,22 @@ class ApiService {
     if (user != null) _cacheUser(user);
   }
 
+  /// Requests a password-reset code by email.
+  static Future<void> forgotPassword(String email) =>
+      _request('POST', '/api/auth/forgot-password', body: {'email': email});
+
+  /// Verifies the reset code and sets a new password.
+  static Future<void> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) =>
+      _request('POST', '/api/auth/reset-password', body: {
+        'email': email,
+        'otp': otp,
+        'newPassword': newPassword,
+      });
+
   // ── Detections ───────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getDetections() async {

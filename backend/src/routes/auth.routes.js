@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 
 import { User } from '../models/User.model.js';
+import { PasswordReset } from '../models/PasswordReset.model.js';
 import { authRequired } from '../middleware/auth.js';
-import { sendOtpEmail } from '../services/email.service.js';
+import { sendOtpEmail, sendResetOtpEmail } from '../services/email.service.js';
 
 const router = Router();
 
@@ -33,6 +35,99 @@ router.post('/send-otp', async (req, res, next) => {
     res.status(502).json({
       message: `Could not send the verification email: ${err.message}`,
     });
+  }
+});
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    // Respond generically to avoid revealing whether an account exists.
+    if (!user) {
+      return res.json({
+        message:
+          'If an account exists for that email, a reset code has been sent.',
+      });
+    }
+
+    const otp = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const otpHash = await bcrypt.hash(otp, 10);
+
+    await PasswordReset.updateMany(
+      { email: normalizedEmail, used: false },
+      { $set: { used: true } },
+    );
+    await PasswordReset.create({
+      email: normalizedEmail,
+      otpHash,
+      expiresAt,
+    });
+    await sendResetOtpEmail({ toEmail: normalizedEmail, otp });
+
+    res.json({
+      message:
+        'If an account exists for that email, a reset code has been sent.',
+    });
+  } catch (err) {
+    console.error('forgot-password failed:', err.message);
+    res
+      .status(502)
+      .json({ message: `Could not send the reset code: ${err.message}` });
+  }
+});
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body || {};
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and reset code are required' });
+    }
+    if (!newPassword || String(newPassword).length < 6) {
+      return res
+        .status(400)
+        .json({ message: 'New password must be at least 6 characters' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const reset = await PasswordReset.findOne({
+      email: normalizedEmail,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    if (!reset) {
+      return res
+        .status(400)
+        .json({ message: 'Invalid or expired code. Please request a new one.' });
+    }
+
+    const ok = await bcrypt.compare(String(otp), reset.otpHash);
+    if (!ok) {
+      return res.status(400).json({ message: 'Invalid reset code.' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this email.' });
+    }
+
+    const hashed = await bcrypt.hash(String(newPassword), 10);
+    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
+    await PasswordReset.updateOne(
+      { _id: reset._id },
+      { $set: { used: true } },
+    );
+
+    res.json({ message: 'Password updated. You can now sign in.' });
+  } catch (err) {
+    console.error('reset-password failed:', err.message);
+    res.status(500).json({ message: 'Server error. Please try again later.' });
   }
 });
 

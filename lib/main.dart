@@ -16,6 +16,7 @@ import 'screens/privacy_policy_screen.dart';
 import 'screens/privacy_screen.dart';
 import 'screens/profile_details_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/forgot_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -103,6 +104,7 @@ class MyApp extends StatelessWidget {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/forgot_password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const AppShell(),
         '/how_it_works': (context) => const HowItWorksScreen(),
         '/notifications': (context) => const NotificationsScreen(),
