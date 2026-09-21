@@ -6,8 +6,14 @@ import crypto from 'node:crypto';
 import { User } from '../models/User.model.js';
 import { PasswordReset } from '../models/PasswordReset.model.js';
 import { authRequired } from '../middleware/auth.js';
-import { sendOtpEmail, sendResetOtpEmail } from '../services/email.service.js';
+import {
+  sendOtpEmail,
+  sendResetOtpEmail,
+  sendWelcomeEmail,
+  sendPasswordChangedEmail,
+} from '../services/email.service.js';
 import { sendSuccess, sendError, ErrorCodes, sendCreated } from '../utils/response.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
 
@@ -123,6 +129,15 @@ router.post('/reset-password', async (req, res, next) => {
       { $set: { used: true } },
     );
 
+    sendPasswordChangedEmail({
+      toEmail: normalizedEmail,
+      name: user.name,
+    }).then(() => {
+      logger.info('password-changed email sent', { userId: user._id.toString() });
+    }).catch((err) => {
+      logger.warn('password-changed email failed', { userId: user._id.toString(), error: err.message });
+    });
+
     return sendSuccess(res, 'Password updated. You can now sign in.');
   } catch (err) {
     next(err);
@@ -148,6 +163,14 @@ router.post('/register', async (req, res, next) => {
       name: String(name).trim(),
       email: normalizedEmail,
       password: hashed,
+    });
+    sendWelcomeEmail({
+      toEmail: normalizedEmail,
+      name: user.name,
+    }).then(() => {
+      logger.info('welcome email sent', { userId: user._id.toString() });
+    }).catch((err) => {
+      logger.warn('welcome email failed', { userId: user._id.toString(), error: err.message });
     });
     return sendCreated(
       res,
