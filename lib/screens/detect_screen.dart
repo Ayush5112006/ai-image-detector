@@ -70,7 +70,7 @@ class _DetectScreenState extends State<DetectScreen> {
         leading: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 0, 10),
           child: ProfileAvatar(
-            name: 'Ayush',
+            name: '',
             onTap: () => Navigator.pushNamed(context, '/profile_details'),
           ),
         ),

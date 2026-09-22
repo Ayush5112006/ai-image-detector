@@ -18,12 +18,11 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   static const _keyLocation = 'profile_location';
   static const _keyBio = 'profile_bio';
 
-  String _name = 'Ayush';
-  String _email = 'thummarayush05@gmail.com';
+  String _name = '';
+  String _email = '';
   String _phone = '';
   String _location = '';
-  String _bio =
-      'Deepfake detection enthusiast. Using ChitraVision AI to stay one step ahead of synthetic media.';
+  String _bio = '';
 
   @override
   void initState() {
@@ -421,8 +420,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   Future<void> _loadCurrentValues() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    _nameCtrl.text = prefs.getString(_keyName) ?? 'Ayush';
-    _emailCtrl.text = prefs.getString(_keyEmail) ?? 'thummarayush05@gmail.com';
+    _nameCtrl.text = prefs.getString(_keyName) ?? '';
+    _emailCtrl.text = prefs.getString(_keyEmail) ?? '';
     _phoneCtrl.text = prefs.getString(_keyPhone) ?? '';
     _locationCtrl.text = prefs.getString(_keyLocation) ?? '';
     _bioCtrl.text = prefs.getString(_keyBio) ?? '';

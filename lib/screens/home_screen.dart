@@ -15,7 +15,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _name = 'Ayush';
+  String _name = '';
 
   @override
   void initState() {
@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hi, $_name',
+                          _name.isEmpty ? 'Hi there' : 'Hi, $_name',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
