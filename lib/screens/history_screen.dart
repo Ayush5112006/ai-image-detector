@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/skeleton.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key, this.onStartDetection, this.active = true});
@@ -24,6 +26,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
+  String _name = '';
+
   List<Map<String, dynamic>> _detections = [];
   bool _loading = true;
   String? _error;
@@ -31,7 +35,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _loadName();
     _loadDetections();
+  }
+
+  Future<void> _loadName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final name = prefs.getString('profile_name');
+    if (name != null && name.isNotEmpty) {
+      setState(() => _name = name);
+    }
   }
 
   @override
@@ -234,7 +248,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Row(
                 children: [
                   ProfileAvatar(
-                    name: 'Ayush',
+                    name: _name.isEmpty ? null : _name,
                     onTap: () =>
                         Navigator.pushNamed(context, '/profile_details'),
                   ),
@@ -342,8 +356,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildBody(List<Map<String, dynamic>> filtered) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+      return ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 6,
+        itemBuilder: (context, index) =>
+            const _SkeletonDetectionCard(),
       );
     }
 
@@ -455,6 +472,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
             onDelete: () => _deleteDetection(detection),
           );
         },
+      ),
+    );
+  }
+}
+
+class _SkeletonDetectionCard extends StatelessWidget {
+  const _SkeletonDetectionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AppCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            AppSkeleton.box(
+              width: 48,
+              height: 48,
+              radius: AppRadius.md,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppSkeleton.box(width: 150),
+                  const SizedBox(height: 8),
+                  AppSkeleton.box(width: 100, height: 10),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                AppSkeleton.box(width: 56, height: 20, radius: 20),
+                const SizedBox(height: 8),
+                AppSkeleton.box(width: 34, height: 10),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/skeleton.dart';
 
 Future<void> _confirmSignOut(BuildContext context) async {
   final confirmed = await showDialog<bool>(
@@ -60,8 +61,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _name = 'Ayush';
-  String _email = 'thummarayush05@gmail.com';
+  String _name = '';
+  String _email = '';
   String _totalScans = '0';
   String _fakesFound = '0';
   String _cleared = '0';
@@ -70,21 +71,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _xpForNext = 100;
   bool _premiumActive = false;
   bool _premiumToggling = false;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFromPrefs();
-    _loadFromBackend();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      await Future.wait([_loadFromPrefs(), _loadFromBackend()]);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() {
-      _name = prefs.getString('profile_name') ?? _name;
-      _email = prefs.getString('profile_email') ?? _email;
-    });
+    final name = prefs.getString('profile_name');
+    final email = prefs.getString('profile_email');
+    if ((name != null && name.isNotEmpty) ||
+        (email != null && email.isNotEmpty)) {
+      setState(() {
+        _name = name ?? _name;
+        _email = email ?? _email;
+      });
+    }
   }
 
   Future<void> _loadFromBackend() async {
@@ -152,6 +166,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Widget _buildSkeletonContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            vertical: 30,
+            horizontal: 20,
+          ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+          ),
+          child: Column(
+            children: [
+              AppSkeleton.circle(size: 88),
+              const SizedBox(height: 12),
+              AppSkeleton.box(width: 150, height: 18),
+              const SizedBox(height: 8),
+              AppSkeleton.box(width: 210, height: 10),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        AppCard(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _skeletonStatColumn(),
+              Container(
+                width: 1,
+                height: 40,
+                color: AppColors.divider,
+              ),
+              _skeletonStatColumn(),
+              Container(
+                width: 1,
+                height: 40,
+                color: AppColors.divider,
+              ),
+              _skeletonStatColumn(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AppSkeleton.box(width: 130),
+                  AppSkeleton.box(width: 90, height: 10),
+                ],
+              ),
+              const SizedBox(height: 12),
+              AppSkeleton.box(height: 8, radius: 10),
+              const SizedBox(height: 12),
+              AppSkeleton.box(width: 230, height: 10),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        AppCard(
+          child: Row(
+            children: [
+              AppSkeleton.box(
+                width: 42,
+                height: 42,
+                radius: AppRadius.sm,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSkeleton.box(width: 110),
+                    const SizedBox(height: 8),
+                    AppSkeleton.box(width: 170, height: 10),
+                  ],
+                ),
+              ),
+              AppSkeleton.box(width: 64, height: 30, radius: 20),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _skeletonStatColumn() {
+    return Column(
+      children: [
+        AppSkeleton.box(width: 40, height: 20),
+        const SizedBox(height: 6),
+        AppSkeleton.box(width: 56, height: 9),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,7 +282,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile header banner
+              if (_loading) ...[
+                _buildSkeletonContent(),
+              ] else ...[
+                // Profile header banner
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -411,6 +534,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              ],
 
               const AppSectionTitle('Account'),
               const SizedBox(height: 12),
