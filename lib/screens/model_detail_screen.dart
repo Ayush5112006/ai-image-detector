@@ -26,6 +26,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
   bool _cancelled = false;
   _DetectionStage _stage = _DetectionStage.idle;
   String? _resultMessage;
+  String? _resultVerdict;
   http.Client? _activeClient;
 
   Map<String, dynamic> _getModelConfig() {
@@ -122,6 +123,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
       _isAnalyzing = false;
       _stage = _DetectionStage.error;
       _resultMessage = message;
+      _resultVerdict = null;
       _activeClient?.close();
       _activeClient = null;
     });
@@ -136,6 +138,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
         _isAnalyzing = false;
         _stage = _DetectionStage.idle;
         _resultMessage = null;
+        _resultVerdict = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -163,6 +166,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
     setState(() {
       _isAnalyzing = true;
       _resultMessage = null;
+      _resultVerdict = null;
       _stage = _DetectionStage.uploading;
     });
 
@@ -198,6 +202,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
           ? (prediction!['confidence'] as num).toDouble()
           : 0.0;
 
+      _resultVerdict = prediction?['verdict']?.toString();
       _showResult('$label (${conf.toStringAsFixed(1)}% Confidence)');
     } on ApiException catch (e) {
       if (_cancelled || !mounted) return;
@@ -256,6 +261,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
           _selectedFileName = fileName;
           _selectedFileBytes = bytes;
           _resultMessage = null;
+          _resultVerdict = null;
         });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -669,7 +675,9 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
   }
 
   Widget _buildResultState() {
-    final bool isReal = _resultMessage!.contains('Real');
+    final String message = _resultMessage ?? 'Scan completed';
+    final bool isReal = _resultVerdict == 'Real' ||
+        (_resultVerdict == null && message.contains('Real'));
     final Color resultColor = isReal ? AppColors.success : AppColors.danger;
     final Color resultBg = isReal ? AppColors.successBg : AppColors.dangerBg;
     return Column(
@@ -690,7 +698,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
         ),
         const SizedBox(height: 20),
         Text(
-          _resultMessage!,
+          message,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 19,
@@ -711,6 +719,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                 _selectedFileName = null;
                 _selectedFileBytes = null;
                 _resultMessage = null;
+                _resultVerdict = null;
               });
             },
           ),

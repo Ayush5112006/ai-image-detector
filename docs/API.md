@@ -191,19 +191,6 @@ All endpoints require `Authorization: Bearer <token>`.
   ```
 - **Errors:** `401 UNAUTHORIZED`
 
-#### `POST /api/detections` — Save a client-computed result (legacy)
-
-- **Auth:** required
-- **Body:**
-  ```json
-  {
-    "modelId": "01", "modelName": "AI Image Detector", "category": "image",
-    "fileName": "photo.png", "verdict": "AI", "confidence": 87.4, "resultLabel": "AI Generated"
-  }
-  ```
-- **Success 201:** `{ "success": true, "message": "Detection saved to history.", "detection": {...} }`
-- **Errors:** `400 VALIDATION_ERROR` bad verdict · `401 UNAUTHORIZED`
-
 #### `POST /api/detections/analyze` — Full AI detection pipeline ⭐
 
 Uploads a file; the backend forwards it to the **FastAPI ML service**, stores

@@ -32,43 +32,6 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// Legacy endpoint — accepts an already-computed result from the client.
-router.post('/', async (req, res, next) => {
-  try {
-    const {
-      modelId = '01',
-      modelName = '',
-      category = 'image',
-      fileName = '',
-      verdict,
-      confidence = 0,
-      resultLabel = '',
-    } = req.body || {};
-
-    if (!['AI', 'Real'].includes(verdict)) {
-      return sendError(res, 400, ErrorCodes.VALIDATION, 'verdict must be "AI" or "Real"');
-    }
-
-    const detection = await Detection.create({
-      userId: req.user._id,
-      modelId: String(modelId),
-      modelName: String(modelName),
-      category: String(category),
-      fileName: String(fileName),
-      verdict,
-      confidence: Math.min(100, Math.max(0, Number(confidence) || 0)),
-      resultLabel: String(resultLabel),
-    });
-
-    await req.user.updateOne({ $inc: { xp: 10 } });
-    logger.info('detection saved', { requestId: req.id, detectionId: detection._id });
-
-    return sendCreated(res, 'Detection saved to history.', { detection });
-  } catch (err) {
-    next(err);
-  }
-});
-
 // Full pipeline: upload media -> FastAPI -> HuggingFace -> MongoDB.
 // Expects multipart/form-data with a `file` field and an optional `modelId`.
 router.post('/analyze', uploadMedia.single('file'), async (req, res, next) => {

@@ -146,31 +146,6 @@ class ApiService {
         .cast<Map<String, dynamic>>();
   }
 
-  static Future<Map<String, dynamic>> createDetection({
-    required String modelId,
-    required String modelName,
-    required String category,
-    required String fileName,
-    required String verdict,
-    required double confidence,
-    required String resultLabel,
-  }) async {
-    final data = await _request(
-      'POST',
-      '/api/detections',
-      body: {
-        'modelId': modelId,
-        'modelName': modelName,
-        'category': category,
-        'fileName': fileName,
-        'verdict': verdict,
-        'confidence': confidence,
-        'resultLabel': resultLabel,
-      },
-    );
-    return data['detection'] as Map<String, dynamic>? ?? {};
-  }
-
   /// Uploads media and runs the full backend pipeline:
   /// Node backend → FastAPI → HuggingFace model → MongoDB.
   ///
