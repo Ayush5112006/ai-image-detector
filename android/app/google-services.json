@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "711374283130",
+    "project_id": "chitravisionai-de611",
+    "storage_bucket": "chitravisionai-de611.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711374283130:android:a5a5f621383a1a740776c3",
+        "android_client_info": {
+          "package_name": "com.chitravisionai.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwXljmyHTTIvT8f81BWVLGrVw6jgIneDo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

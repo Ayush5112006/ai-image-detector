@@ -11,9 +11,10 @@ ML service need to reach each other.
 
 > **Security:** never commit `.env` files. Set environment variables in your
 > host's dashboard instead. Use strong, unique `JWT_SECRET` and `MONGODB_URI`
-> values per environment. The current Firebase config is a placeholder; add
-> real `google-services.json`/`GoogleService-Info.plist` and swap the stubs in
-> `lib/config/firebase_options.dart` before enabling Google Sign-In.
+> values per environment. Google Sign-In is configured for Android
+> (`android/app/google-services.json`, package `com.chitravisionai.app`); web
+> and iOS still need their own Firebase config
+> (`GoogleService-Info.plist` / web client) before their Google buttons appear.
 
 > **Contract change alert:** the backend success envelope is now
 > `{ success, message, data }` and registration requires a server-issued one-time
@@ -79,10 +80,13 @@ Environment is described in [`docs/API.md`](API.md#environment-variables-fastapi
 
    > `GOOGLE_CLIENT_ID` is optional: until it is set, Google Sign-In returns
    > `500 INTERNAL "Google Sign-In is not configured"`. When enabled, the Flutter
-   > app sends the Firebase `idToken` (from the Google account picker) to
+   > app sends the **raw Google ID token** (from the Google account picker) to
    > `POST /api/auth/google`, which verifies it against Google and mints the
-   > ChitraVision JWT. Keep `MOCK_GOOGLE_AUTH=0`/unset (integration-test helper
-   > only — it skips token verification and is never for production).
+   > ChitraVision JWT. Set `GOOGLE_CLIENT_ID` to the same OAuth client ID the
+   > app's Google Sign-In uses (the "server client ID" from Firebase → Auth →
+   > Sign-in method → Google; it must match the token's `aud`). Keep
+   > `MOCK_GOOGLE_AUTH=0`/unset (integration-test helper only — it skips token
+   > verification and is never for production).
 
    > Gmail requires an [App Password](https://support.google.com/accounts/answer/185833)
    > (2-step verification enabled). Any SMTP provider works with `nodemailer`.
@@ -149,5 +153,6 @@ config before release.
       `detections.userId_1_verdict_1`, `users.email_1`,
       `passwordresets.email_1_purpose_1_used_1_createdAt_-1`
 - [ ] `send-otp` → `register` (with `otp`) and `change-password` work end-to-end
-- [ ] Real Firebase options swapped (no placeholder keys)
+- [ ] Google Sign-In verified on-device (raw Google token → backend JWT → history loads)
+- [ ] Web/iOS Firebase config added if those builds ship (placeholder stub remains) — insert real web/iOS keys, else Google button stays hidden
 - [ ] Backups scheduled — see [`docs/BACKUP-RECOVERY.md`](BACKUP-RECOVERY.md)

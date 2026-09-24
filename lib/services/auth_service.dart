@@ -27,46 +27,36 @@ class AuthService {
 
   // ── Google Sign-In ──────────────────────────────────────────────────────────
 
-  /// Opens the Google account picker, authenticates with Firebase, and returns
-  /// the [UserCredential].  Returns `null` if the user cancels the flow.
-  static Future<UserCredential?> signInWithGoogle() async {
+  /// Full Google flow: Google account picker → send the **raw Google ID token**
+  /// to the backend (which verifies it against Google and mints the
+  /// ChitraVision JWT) → cache the profile. Returns the backend user profile,
+  /// or `null` if the user cancelled the account picker.
+  ///
+  /// Firebase signs the user in too (so sign-out / auth state stay coherent),
+  /// but the token sent to the backend is the Google token, not Firebase's —
+  /// the backend verifies Google tokens via `google-auth-library`.
+  static Future<Map<String, dynamic>?> signInWithGoogleBackend() async {
+    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return null; // user cancelled
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+    final googleIdToken = googleAuth.idToken;
+    if (googleIdToken == null || googleIdToken.isEmpty) {
+      throw 'Google Sign-In failed. Please try again.';
+    }
+
     try {
-      // Trigger the Google account chooser
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // user cancelled
-
-      // Obtain the auth tokens
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Build a Firebase credential from the tokens
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        idToken: googleIdToken,
       );
-
-      // Sign in to Firebase
-      return await _auth.signInWithCredential(credential);
+      await _auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
       throw _friendlyError(e.code);
-    } catch (e) {
-      throw 'Google Sign-In failed. Please try again.';
-    }
-  }
-
-  /// Full Google flow: Firebase Google auth → exchange the ID token for a
-  /// ChitraVision backend JWT → cache the profile. Returns the backend user
-  /// profile, or `null` if the user cancelled the account picker.
-  static Future<Map<String, dynamic>?> signInWithGoogleBackend() async {
-    final credential = await signInWithGoogle();
-    if (credential == null) return null;
-
-    final idToken = await credential.user!.getIdToken();
-    if (idToken == null || idToken.isEmpty) {
-      throw 'Google Sign-In failed. Please try again.';
     }
 
-    final user = await ApiService.signInWithGoogle(idToken: idToken);
+    final user = await ApiService.signInWithGoogle(idToken: googleIdToken);
     final prefs = await SharedPreferences.getInstance();
     if (user['name'] != null) {
       await prefs.setString('profile_name', user['name'].toString());

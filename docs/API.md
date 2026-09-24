@@ -119,12 +119,13 @@ The code is single-use, scoped to the email, and expires after 5 minutes.
 #### `POST /api/auth/google` — Sign in with Google
 
 - **Auth:** none
-- **Body:** `{ "idToken": "..." }` — the Google/Firebase ID token obtained by
-  the app after the Google account picker. The server verifies the token's
-  signature and issuer against Google (audience = `GOOGLE_CLIENT_ID`), then
-  creates the account on first sign-in (with a random password — such accounts
-  sign in via Google or password reset only) or reuses the existing one by
-  verified email.
+- **Body:** `{ "idToken": "..." }` — the **raw Google ID token** obtained by
+  the app after the Google account picker (not the Firebase one). The server
+  verifies the token's signature and issuer against Google (audience =
+  `GOOGLE_CLIENT_ID`, which must be the OAuth client the app's Google Sign-In
+  uses), then creates the account on first sign-in (with a random password —
+  such accounts sign in via Google or password reset only) or reuses the
+  existing one by verified email.
 - **Success 200:** `{ "success": true, "message": "Signed in successfully.", "data": { "token": "eyJ...", "user": {...} } }`
 - **Errors:** `400 VALIDATION_ERROR` missing token · `401 UNAUTHORIZED` invalid
   token or unverified email · `500 INTERNAL` `GOOGLE_CLIENT_ID` not configured
