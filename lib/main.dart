@@ -94,11 +94,17 @@ class MyApp extends StatelessWidget {
         '/': (context) => SplashScreen(
           onFinished: () async {
             final loggedIn = await ApiService.isLoggedIn();
+            String destination;
+            if (loggedIn) {
+              // Sends stale/rotated JWTs back to login instead of Home,
+              // where every request would otherwise 401.
+              destination =
+                  (await ApiService.isSessionValid()) ? '/home' : '/login';
+            } else {
+              destination = isFirstTime ? '/onboarding' : '/login';
+            }
             if (!context.mounted) return;
-            Navigator.pushReplacementNamed(
-              context,
-              loggedIn ? '/home' : (isFirstTime ? '/onboarding' : '/login'),
-            );
+            Navigator.pushReplacementNamed(context, destination);
           },
         ),
         '/onboarding': (context) => const OnboardingScreen(),

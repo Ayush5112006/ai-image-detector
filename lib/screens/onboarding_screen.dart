@@ -25,14 +25,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'icon': Icons.movie_outlined,
       'title': 'Frame-by-Frame Analysis',
       'desc':
-          'Every video frame is analyzed independently. See exactly where deepfake manipulation begins and ends.',
+          'Video frames are sampled and classified individually to catch deepfake manipulation that single-frame tools miss.',
       'tag': 'Detailed',
     },
     {
       'icon': Icons.insert_chart_outlined,
       'title': 'Instant Verdict & Report',
       'desc':
-          'Get a confidence-scored verdict, heatmap overlay, and downloadable report in seconds.',
+          'Get a confidence-scored verdict for images and videos in seconds — including a frame-by-frame breakdown for videos.',
       'tag': 'Fast',
     },
     {

@@ -55,6 +55,30 @@ class ApiService {
   /// Returns `true` when a (possibly stale) JWT is stored locally.
   static Future<bool> isLoggedIn() async => (await _loadToken()) != null;
 
+  /// Probes the backend with the stored token (short timeout) so a stale or
+  /// rotated token is caught at startup instead of after the user reaches the
+  /// home screen. Only an explicit `401` clears the session; offline or server
+  /// hiccups keep the cached session so the app still opens.
+  static Future<bool> isSessionValid() async {
+    final token = await _loadToken();
+    if (token == null) return false;
+    try {
+      final res = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/api/auth/me'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 6));
+      if (res.statusCode == 401) {
+        await clearSession();
+        return false;
+      }
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      return true;
+    }
+  }
+
   static Future<Map<String, dynamic>> me() async {
     final data = await _request('GET', '/api/auth/me');
     final user = data['user'] as Map<String, dynamic>? ?? {};
