@@ -15,6 +15,12 @@ ML service need to reach each other.
 > real `google-services.json`/`GoogleService-Info.plist` and swap the stubs in
 > `lib/config/firebase_options.dart` before enabling Google Sign-In.
 
+> **Contract change alert:** the backend success envelope is now
+> `{ success, message, data }` and registration requires a server-issued one-time
+> code (`send-otp` → `register` with `otp`). Deploy the backend **and** the app
+> together on release; an old app against the new backend (or vice versa) breaks
+> auth and history.
+
 ## 1. MongoDB Atlas
 
 1. Create a free cluster.
@@ -110,6 +116,8 @@ config before release.
 - [ ] `register` → `login` → `analyze` works end-to-end against production URLs
 - [ ] Reset-password emails arrive (check Mail provider quota)
 - [ ] Mongo indexes exist: `detections.userId_1_createdAt_-1`,
-      `detections.userId_1_verdict_1`, `users.email_1`
+      `detections.userId_1_verdict_1`, `users.email_1`,
+      `passwordresets.email_1_purpose_1_used_1_createdAt_-1`
+- [ ] `send-otp` → `register` (with `otp`) and `change-password` work end-to-end
 - [ ] Real Firebase options swapped (no placeholder keys)
 - [ ] Backups scheduled — see [`docs/BACKUP-RECOVERY.md`](BACKUP-RECOVERY.md)
