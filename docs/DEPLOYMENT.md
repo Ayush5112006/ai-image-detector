@@ -101,9 +101,31 @@ flutter build apk --release --dart-define=API_BASE_URL=https://<api-host>
 
 Output: `build/app/outputs/flutter-apk/app-release.apk`.
 
-> The APK produced by `flutter build apk` is signed with the debug key and is
-> for testing. For Play Store release configure a signing key in
-> `android/app/build.gradle` and build an `appbundle`.
+Release signing (Play Store requires it — an app signed with the debug key
+cannot be published):
+
+1. Generate a keystore (keep backups; losing it means you can never update):
+   ```bash
+   keytool -genkeypair -v -keystore release.jks -keyalg RSA \
+     -keysize 2048 -validity 10000 -alias upload
+   ```
+   Put `release.jks` somewhere safe (e.g. `android/app/release.jks`), **not** in git.
+2. Create `android/key.properties` (already gitignored):
+   ```properties
+   storePassword=<keystore password>
+   keyPassword=<key alias password>
+   keyAlias=upload
+   storeFile=release.jks
+   ```
+3. Rebuild the signed bundle:
+   ```bash
+   flutter build appbundle --release --dart-define=API_BASE_URL=https://<api-host>
+   ```
+   Output: `build/app/outputs/bundle/release/app-release.aab`.
+
+Without `key.properties` the build still succeeds but is **debug-signed** (fine
+for testing, rejected by Play Store). `android/app/build.gradle.kts` reads
+`key.properties` on every build and falls back to the debug key when absent.
 
 ### iOS / macOS
 
