@@ -74,7 +74,15 @@ Environment is described in [`docs/API.md`](API.md#environment-variables-fastapi
    MOCK_ML=0
    SENDER_EMAIL=chitravisionai@gmail.com
    SENDER_APP_PASSWORD=<gmail app password>
+   GOOGLE_CLIENT_ID=<OAuth client ID for Google Sign-In>  # optional; enables POST /api/auth/google
    ```
+
+   > `GOOGLE_CLIENT_ID` is optional: until it is set, Google Sign-In returns
+   > `500 INTERNAL "Google Sign-In is not configured"`. When enabled, the Flutter
+   > app sends the Firebase `idToken` (from the Google account picker) to
+   > `POST /api/auth/google`, which verifies it against Google and mints the
+   > ChitraVision JWT. Keep `MOCK_GOOGLE_AUTH=0`/unset (integration-test helper
+   > only — it skips token verification and is never for production).
 
    > Gmail requires an [App Password](https://support.google.com/accounts/answer/185833)
    > (2-step verification enabled). Any SMTP provider works with `nodemailer`.

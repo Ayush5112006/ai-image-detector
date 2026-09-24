@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'config/firebase_options.dart';
 import 'services/api_service.dart';
+import 'services/auth_service.dart';
 import 'theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -20,9 +21,17 @@ import 'screens/forgot_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: AppFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: AppFirebaseOptions.currentPlatform,
+    );
+    AuthService.firebaseReady = true;
+  } catch (_) {
+    // Firebase is optional: email/password auth works without it. Google
+    // Sign-In is hidden until a real Firebase project is configured
+    // (see `lib/config/firebase_options.dart` / `android/google-services.json`).
+    AuthService.firebaseReady = false;
+  }
   await dotenv.load(fileName: '.env');
   final prefs = await SharedPreferences.getInstance();
   final isFirstTime = prefs.getBool('is_first_time') ?? true;

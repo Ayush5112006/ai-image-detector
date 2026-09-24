@@ -68,7 +68,7 @@ Bearer JWT:
 Authorization: Bearer <token>
 ```
 
-The JWT is issued on `register` / `login` and is valid for **30 days**. It embeds
+The JWT is issued on `register` / `login` / `google` and is valid for **30 days**. It embeds
 `sub` (user id) and `ver` (token version, default `0`); `logout-all` increments
 `ver`, so older tokens are rejected until the user signs in again.
 
@@ -115,6 +115,22 @@ The code is single-use, scoped to the email, and expires after 5 minutes.
 - **Body:** `{ "email": "...", "password": "..." }`
 - **Success 200:** same shape as `register`
 - **Errors:** `400 VALIDATION_ERROR` · `401 UNAUTHORIZED` incorrect credentials
+
+#### `POST /api/auth/google` — Sign in with Google
+
+- **Auth:** none
+- **Body:** `{ "idToken": "..." }` — the Google/Firebase ID token obtained by
+  the app after the Google account picker. The server verifies the token's
+  signature and issuer against Google (audience = `GOOGLE_CLIENT_ID`), then
+  creates the account on first sign-in (with a random password — such accounts
+  sign in via Google or password reset only) or reuses the existing one by
+  verified email.
+- **Success 200:** `{ "success": true, "message": "Signed in successfully.", "data": { "token": "eyJ...", "user": {...} } }`
+- **Errors:** `400 VALIDATION_ERROR` missing token · `401 UNAUTHORIZED` invalid
+  token or unverified email · `500 INTERNAL` `GOOGLE_CLIENT_ID` not configured
+- **Note:** `MOCK_GOOGLE_AUTH=1` (backend env, tests only) skips Google
+  verification and treats the token as a base64-encoded JSON payload. Never
+  enable it in a deployed environment.
 
 #### `GET /api/auth/me` — Current profile
 

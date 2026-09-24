@@ -245,6 +245,84 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+// Verifies a Google ID token and returns a ChitraVision JWT for that account.
+// The account is created on first sign-in (random password — login via
+// Google or password reset only). `GOOGLE_CLIENT_ID` must be the OAuth client
+// ID received by this app; `MOCK_GOOGLE_AUTH=1` exists for integration tests
+// ONLY and must never be enabled in a deployed environment.
+let googleClient;
+
+router.post('/google', async (req, res, next) => {
+  try {
+    const idToken = String(req.body?.idToken ?? '').trim();
+    if (!idToken) {
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Google ID token is required');
+    }
+
+    let payload;
+    if (process.env.MOCK_GOOGLE_AUTH === '1') {
+      // Test-only path: the token is treated as a base64-encoded JSON payload
+      // so integration tests never need to contact Google. Force-disabled in
+      // production via the env guard above.
+      try {
+        payload = JSON.parse(Buffer.from(idToken, 'base64').toString('utf8'));
+      } catch {
+        return sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'Invalid Google sign-in.');
+      }
+    } else {
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        return sendError(
+          res, 500, ErrorCodes.INTERNAL,
+          'Google Sign-In is not configured on the server.',
+        );
+      }
+      if (!googleClient) {
+        const { OAuth2Client } = await import('google-auth-library');
+        googleClient = new OAuth2Client();
+      }
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } catch {
+        return sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'Invalid Google sign-in.');
+      }
+    }
+
+    const email = (payload.email ?? '').toLowerCase().trim();
+    if (!email || payload.email_verified !== true) {
+      return sendError(
+        res, 401, ErrorCodes.UNAUTHORIZED,
+        'Google account has no verified email.',
+      );
+    }
+    const googleName = String(payload.name ?? '').trim() || email.split('@')[0];
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      // Random password: this account sign in is via Google (or reset).
+      const randomPassword = crypto.randomBytes(24).toString('hex');
+      user = await User.create({
+        name: googleName,
+        email,
+        password: await bcrypt.hash(randomPassword, 10),
+      });
+      sendWelcomeEmail({ toEmail: email, name: user.name })
+        .then(() => logger.info('welcome email sent', { userId: user._id.toString() }))
+        .catch((err) => logger.warn('welcome email failed', { userId: user._id.toString(), error: err.message }));
+    }
+
+    return sendSuccess(res, 'Signed in successfully.', {
+      token: signToken(user),
+      user: sanitize(user),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/me', authRequired, (req, res) => {
   sendSuccess(res, 'Profile loaded.', { user: sanitize(req.user) });
 });

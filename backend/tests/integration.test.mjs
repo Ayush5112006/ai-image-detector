@@ -364,3 +364,50 @@ test('logout-all rotates tokens; delete account removes the user and data', asyn
 
   await mongoose.models.PasswordReset.deleteMany({ email });
 });
+
+test('google sign-in: verifies token, creates or reuses the account, issues JWT', async () => {
+  const email = `google_${process.pid}_${Date.now()}@example.com`;
+  const idToken = Buffer.from(
+    JSON.stringify({
+      sub: 'google-123456',
+      email,
+      name: 'Google User',
+      email_verified: true,
+    }),
+  ).toString('base64');
+
+  process.env.MOCK_GOOGLE_AUTH = '1';
+  try {
+    // 1. First Google sign-in creates the account and returns a JWT.
+    let r = await jsonRequest(api.port, 'POST', '/api/auth/google', {
+      body: { idToken },
+    });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.data.user.email, email);
+    assert.ok(r.body.data.token, 'google sign-in returns a backend JWT');
+
+    const firstUserId = r.body.data.user._id;
+    let token = r.body.data.token;
+
+    // 2. The token is a real backend session.
+    r = await jsonRequest(api.port, 'GET', '/api/auth/me', { token });
+    assert.equal(r.status, 200);
+
+    // 3. Signing in again reuses the same account.
+    r = await jsonRequest(api.port, 'POST', '/api/auth/google', {
+      body: { idToken },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.data.user._id, firstUserId, 'account reused, not duplicated');
+    token = r.body.data.token;
+
+    // 4. Missing token is rejected.
+    r = await jsonRequest(api.port, 'POST', '/api/auth/google', { body: {} });
+    assert.equal(r.status, 400);
+    assert.equal(r.body.error.code, 'VALIDATION_ERROR');
+
+    await mongoose.models.User.deleteOne({ email });
+  } finally {
+    delete process.env.MOCK_GOOGLE_AUTH;
+  }
+});

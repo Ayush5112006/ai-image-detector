@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/email_service.dart';
 import '../theme.dart';
@@ -72,9 +73,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final credential = await AuthService.signInWithGoogle();
+      final user = await AuthService.signInWithGoogleBackend();
       if (!mounted) return;
-      if (credential != null) {
+      if (user != null) {
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/home',
@@ -85,7 +86,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(
+            e is ApiException ? e.message : 'Sign in failed: $e',
+          ),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -306,10 +309,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 20),
 
                       // ── Continue with Google ────────────────────────────
-                      _GoogleSignInButton(
-                        onPressed: _isLoading ? null : _signInWithGoogle,
-                      ),
-                      const SizedBox(height: 24),
+                      // Hidden until a real Firebase project is configured.
+                      if (AuthService.firebaseReady)
+                        _GoogleSignInButton(
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                        ),
+                      if (AuthService.firebaseReady) const SizedBox(height: 24),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,

@@ -70,9 +70,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final credential = await AuthService.signInWithGoogle();
+      final user = await AuthService.signInWithGoogleBackend();
       if (!mounted) return;
-      if (credential != null) {
+      if (user != null) {
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/home',
@@ -83,7 +83,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(
+            e is ApiException ? e.message : 'Sign in failed: $e',
+          ),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -180,11 +182,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Continue with Google
-                      _GoogleSignInButton(
-                        onPressed: _isLoading ? null : _signInWithGoogle,
-                      ),
-                      const SizedBox(height: 20),
+                      // Continue with Google (hidden until a real Firebase
+                      // project is configured — see AuthService.firebaseReady)
+                      if (AuthService.firebaseReady)
+                        _GoogleSignInButton(
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                        ),
+                      if (AuthService.firebaseReady) const SizedBox(height: 20),
 
                       // Divider
                       const Row(

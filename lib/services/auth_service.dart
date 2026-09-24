@@ -1,5 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api_service.dart';
 
 /// Centralised authentication service.
 /// Wraps Firebase Auth + Google Sign-In so screens stay thin.
@@ -8,6 +11,11 @@ class AuthService {
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  /// Set during startup (see `main.dart`). Google Sign-In is only available
+  /// when a real Firebase project / `google-services.json` is configured;
+  /// otherwise the Google button is hidden and email auth still works.
+  static bool firebaseReady = false;
 
   // ── Stream ──────────────────────────────────────────────────────────────────
 
@@ -46,9 +54,33 @@ class AuthService {
     }
   }
 
+  /// Full Google flow: Firebase Google auth → exchange the ID token for a
+  /// ChitraVision backend JWT → cache the profile. Returns the backend user
+  /// profile, or `null` if the user cancelled the account picker.
+  static Future<Map<String, dynamic>?> signInWithGoogleBackend() async {
+    final credential = await signInWithGoogle();
+    if (credential == null) return null;
+
+    final idToken = await credential.user!.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw 'Google Sign-In failed. Please try again.';
+    }
+
+    final user = await ApiService.signInWithGoogle(idToken: idToken);
+    final prefs = await SharedPreferences.getInstance();
+    if (user['name'] != null) {
+      await prefs.setString('profile_name', user['name'].toString());
+    }
+    if (user['email'] != null) {
+      await prefs.setString('profile_email', user['email'].toString());
+    }
+    return user;
+  }
+
   // ── Sign Out ────────────────────────────────────────────────────────────────
 
   static Future<void> signOut() async {
+    await ApiService.clearSession();
     await Future.wait([
       _auth.signOut(),
       _googleSignIn.signOut(),

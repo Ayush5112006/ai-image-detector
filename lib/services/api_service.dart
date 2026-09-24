@@ -120,6 +120,18 @@ class ApiService {
     return data['user'] as Map<String, dynamic>? ?? {};
   }
 
+  /// Exchanges a Google ID token (from Firebase) for a ChitraVision JWT and
+  /// the user profile. Creates the account server-side on first sign-in.
+  static Future<Map<String, dynamic>> signInWithGoogle({
+    required String idToken,
+  }) async {
+    final data = await _request('POST', '/api/auth/google', body: {
+      'idToken': idToken,
+    });
+    await _acceptSession(data);
+    return data['user'] as Map<String, dynamic>? ?? {};
+  }
+
   static Future<Map<String, dynamic>> updateProfile(
     Map<String, dynamic> fields,
   ) async {
