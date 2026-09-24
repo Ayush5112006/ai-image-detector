@@ -20,6 +20,9 @@ const userSchema = new mongoose.Schema(
       expiresAt: { type: Date, default: null },
     },
     isAdmin: { type: Boolean, default: false },
+    // Rotated by /logout-all (and password reset flows) so every JWT issued
+    // before the rotation stops authenticating.
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

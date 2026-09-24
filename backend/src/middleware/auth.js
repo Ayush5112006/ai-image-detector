@@ -14,6 +14,9 @@ export async function authRequired(req, res, next) {
     if (!user) {
       return sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'User no longer exists');
     }
+    if ((payload.ver ?? 0) !== user.tokenVersion) {
+      return sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'Session signed out. Please sign in again.');
+    }
     req.user = user;
     next();
   } catch {

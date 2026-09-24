@@ -19,27 +19,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
   bool _dataSharing = false;
   bool _twoFactor = false;
 
-  final List<Map<String, dynamic>> _sessions = [
-    {
-      'device': 'ChitraVision Android',
-      'detail': 'Current device • Active now',
-      'icon': Icons.smartphone,
-      'current': true,
-    },
-    {
-      'device': 'Windows • Chrome',
-      'detail': 'Last active 2 hours ago',
-      'icon': Icons.laptop_mac,
-      'current': false,
-    },
-    {
-      'device': 'iPhone 15 Pro',
-      'detail': 'Last active 3 days ago',
-      'icon': Icons.phone_iphone,
-      'current': false,
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -288,19 +267,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     }
   }
 
-  Future<void> _logoutSession(int index) async {
-    final session = _sessions[index];
-    final ok = await _confirm(
-      'Log out of this device?',
-      'You will be signed out of "${session['device']}". You can sign back in anytime.',
-      confirmLabel: 'Log Out',
-      destructive: true,
-    );
-    if (!ok || !mounted) return;
-    setState(() => _sessions.removeAt(index));
-    _showSnack('Logged out of ${session['device']}');
-  }
-
   Future<void> _logoutAllDevices() async {
     final ok = await _confirm(
       'Log out of all devices?',
@@ -309,10 +275,17 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       destructive: true,
     );
     if (!ok || !mounted) return;
-    setState(() {
-      _sessions.removeWhere((s) => !(s['current'] as bool));
-    });
-    _showSnack('Logged out of all other devices');
+    try {
+      await ApiService.logoutOtherDevices();
+      if (!mounted) return;
+      _showSnack('Logged out of all other devices');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showSnack(e.message, isSuccess: false);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not sign out other devices. Please try again.', isSuccess: false);
+    }
   }
 
   Future<void> _deleteAccount() async {
@@ -323,7 +296,17 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       destructive: true,
     );
     if (!ok || !mounted) return;
-    _showSnack('Account deletion request submitted');
+    try {
+      await ApiService.deleteAccount();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showSnack(e.message, isSuccess: false);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not delete the account. Please try again.', isSuccess: false);
+    }
   }
 
   Widget _sectionHeader(String text) {
@@ -517,98 +500,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               ),
 
               _sectionHeader('Login & Sessions'),
-              ..._sessions.asMap().entries.map((entry) {
-                final index = entry.key;
-                final session = entry.value;
-                final bool isCurrent = session['current'] as bool;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: AppCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceAlt,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Icon(
-                            session['icon'] as IconData,
-                            color: AppColors.primary,
-                            size: 21,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      session['device'] as String,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isCurrent) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.successBg,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'Current',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.success,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                session['detail'] as String,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (!isCurrent)
-                          TextButton(
-                            onPressed: () => _logoutSession(index),
-                            child: const Text(
-                              'Log out',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.danger,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
               AppSecondaryButton(
                 label: 'Log Out of All Devices',
                 icon: Icons.devices_other,

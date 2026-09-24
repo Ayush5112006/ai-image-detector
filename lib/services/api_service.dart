@@ -116,6 +116,21 @@ class ApiService {
   static Future<void> forgotPassword(String email) =>
       _request('POST', '/api/auth/forgot-password', body: {'email': email});
 
+  /// Signs out every other device. The backend rotates its token version,
+  /// invalidating all older JWTs, and hands back a fresh token for this device.
+  static Future<void> logoutOtherDevices() async {
+    final data = await _request('POST', '/api/auth/logout-all');
+    final token = data['token'] as String?;
+    if (token != null) await saveToken(token);
+  }
+
+  /// Permanently deletes the signed-in account (and its data) server-side,
+  /// then clears the local session.
+  static Future<void> deleteAccount() async {
+    await _request('DELETE', '/api/auth/me');
+    await clearSession();
+  }
+
   /// Verifies the reset code and sets a new password.
   static Future<void> resetPassword({
     required String email,

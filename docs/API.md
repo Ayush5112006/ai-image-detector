@@ -68,7 +68,9 @@ Bearer JWT:
 Authorization: Bearer <token>
 ```
 
-The JWT is issued on `register` / `login` and is valid for **30 days**.
+The JWT is issued on `register` / `login` and is valid for **30 days**. It embeds
+`sub` (user id) and `ver` (token version, default `0`); `logout-all` increments
+`ver`, so older tokens are rejected until the user signs in again.
 
 ---
 
@@ -141,6 +143,23 @@ The code is single-use, scoped to the email, and expires after 5 minutes.
 - **Body:** `{ "currentPassword": "...", "newPassword": "newpass123" }`
 - **Success 200:** `{ "success": true, "message": "Password changed successfully." }`
 - **Errors:** `400 VALIDATION_ERROR` short password · `401 UNAUTHORIZED` wrong current password
+
+#### `POST /api/auth/logout-all` — Sign out every other device
+
+- **Auth:** `Bearer <token>`
+- Rotates the user's `tokenVersion`, invalidating *every* previously-issued JWT
+  (including the one in the request), then returns a fresh token so the current
+  device stays signed in.
+- **Success 200:** `{ "success": true, "message": "Signed out of all other devices.", "data": { "token": "eyJ..." } }`
+- **Errors:** `401 UNAUTHORIZED`
+
+#### `DELETE /api/auth/me` — Permanently delete the account
+
+- **Auth:** `Bearer <token>`
+- Deletes the user, cascade-deletes their detections and clears any pending
+  password-reset/OTP records. All JWTs for the account stop working.
+- **Success 200:** `{ "success": true, "message": "Account and all associated data deleted." }`
+- **Errors:** `401 UNAUTHORIZED`
 
 #### `POST /api/auth/forgot-password` — Request a password reset code
 

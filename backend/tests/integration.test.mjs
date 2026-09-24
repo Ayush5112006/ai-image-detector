@@ -310,3 +310,57 @@ test('password reset: forgot-password -> reset-password -> change-password', asy
   await mongoose.models.User.deleteOne({ email });
   await mongoose.models.PasswordReset.deleteMany({ email });
 });
+
+test('logout-all rotates tokens; delete account removes the user and data', async () => {
+  const email = `acct_${process.pid}_${Date.now()}@example.com`;
+  const otp = await seedOtp(email, 'register');
+  let r = await jsonRequest(api.port, 'POST', '/api/auth/register', {
+    body: { name: 'Acct Test', email, password: 'secret123', otp },
+  });
+  assert.equal(r.status, 201);
+  const token = r.body.data.token;
+
+  // 1. A detection so we can prove it is cascade-deleted with the account.
+  const userBefore = await mongoose.models.User.findOne({ email });
+  await mongoose.models.Detection.create({
+    userId: userBefore._id,
+    modelId: '01',
+    fileName: 'x.png',
+    verdict: 'AI',
+    confidence: 99,
+  });
+
+  // 2. logout-all invalidates the old token and returns a fresh one.
+  r = await jsonRequest(api.port, 'POST', '/api/auth/logout-all', { token });
+  assert.equal(r.status, 200);
+  assert.ok(r.body.data.token, 'logout-all returns a fresh token');
+  const freshToken = r.body.data.token;
+
+  r = await jsonRequest(api.port, 'GET', '/api/auth/me', { token });
+  assert.equal(r.status, 401, 'old token is rejected after logout-all');
+  assert.equal(r.body.error.code, 'UNAUTHORIZED');
+
+  r = await jsonRequest(api.port, 'GET', '/api/auth/me', { token: freshToken });
+  assert.equal(r.status, 200, 'fresh token keeps the current device signed in');
+
+  // 3. Deleting the account removes it, its detections and stops its tokens.
+  r = await jsonRequest(api.port, 'DELETE', '/api/auth/me', { token: freshToken });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.success, true);
+
+  assert.equal(
+    await mongoose.models.User.countDocuments({ email }),
+    0,
+    'user record deleted',
+  );
+  assert.equal(
+    await mongoose.models.Detection.countDocuments({ userId: userBefore._id }),
+    0,
+    'detections cascade-deleted with the account',
+  );
+
+  r = await jsonRequest(api.port, 'GET', '/api/auth/me', { token: freshToken });
+  assert.equal(r.status, 401, 'token dies once the user no longer exists');
+
+  await mongoose.models.PasswordReset.deleteMany({ email });
+});

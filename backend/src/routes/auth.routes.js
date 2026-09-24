@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 
 import { User } from '../models/User.model.js';
 import { PasswordReset } from '../models/PasswordReset.model.js';
+import { Detection } from '../models/Detection.model.js';
 import { authRequired } from '../middleware/auth.js';
 import {
   sendOtpEmail,
@@ -18,9 +19,11 @@ import { logger } from '../utils/logger.js';
 const router = Router();
 
 function signToken(user) {
-  return jwt.sign({ sub: user._id.toString() }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
-  });
+  return jwt.sign(
+    { sub: user._id.toString(), ver: user.tokenVersion ?? 0 },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' },
+  );
 }
 
 function sanitize(user) {
@@ -304,6 +307,34 @@ router.post('/change-password', authRequired, async (req, res, next) => {
     });
 
     return sendSuccess(res, 'Password updated successfully.');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/logout-all', authRequired, async (req, res, next) => {
+  try {
+    // Rotating tokenVersion invalidates every existing JWT, then we re-issue
+    // a fresh one bound to the new version so the current device stays signed in.
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $inc: { tokenVersion: 1 } },
+      { new: true },
+    );
+    return sendSuccess(res, 'Signed out of all other devices.', {
+      token: signToken(user),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/me', authRequired, async (req, res, next) => {
+  try {
+    await Detection.deleteMany({ userId: req.user._id });
+    await PasswordReset.deleteMany({ email: req.user.email });
+    await User.deleteOne({ _id: req.user._id });
+    return sendSuccess(res, 'Account and all associated data deleted.');
   } catch (err) {
     next(err);
   }
