@@ -88,7 +88,7 @@ class HowItWorksScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Version 2.4 • Powered by Gemini Vision',
+                    'Version 2.4',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.9),
@@ -105,26 +105,26 @@ class HowItWorksScreen extends StatelessWidget {
             const _HowItWorksModelDetail(
               num: '01',
               title: 'AI Image Detector',
-              desc: 'Detects AI-generated images from DALL-E, Midjourney, Stable Diffusion using EfficientNet-v4.',
-              tags: ['EfficientNet-v4', 'HuggingFace'],
+              desc: 'Detects AI-generated images from DALL-E, Midjourney, Stable Diffusion using the Hugging Face deepfake model.',
+              tags: ['CNN Classifier', 'HuggingFace'],
             ),
             const _HowItWorksModelDetail(
               num: '02',
               title: 'Deepfake Face Detector',
-              desc: 'Detects face-swapped images. Uses MTCNN for face detection + XceptionNet classifier.',
-              tags: ['XceptionNet', 'FaceForensics++'],
+              desc: 'Flags face-swapped and manipulated faces with the same Hugging Face classification model.',
+              tags: ['HuggingFace', 'CNN Classifier'],
             ),
             const _HowItWorksModelDetail(
               num: '03',
               title: 'Video Deepfake Analyzer',
-              desc: 'Frame-by-frame analysis using OpenCV + per-frame inference with timeline report.',
-              tags: ['EfficientNet', 'OpenCV'],
+              desc: 'Frame extraction with OpenCV, then each frame is classified by the Hugging Face model.',
+              tags: ['OpenCV', 'HuggingFace'],
             ),
             const _HowItWorksModelDetail(
               num: '04',
               title: 'AI Content Classifier',
-              desc: 'Multi-modal classifier using ViT for identifying synthetic AI-generated media.',
-              tags: ['ViT Transformer', 'Multi-modal'],
+              desc: 'Analyzes synthetic AI-generated media using the shared Hugging Face classifier.',
+              tags: ['HuggingFace', 'CNN Classifier'],
             ),
 
             const SizedBox(height: 20),
@@ -135,9 +135,9 @@ class HowItWorksScreen extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _TechTag('Flutter'),
+                _TechTag('Node.js'),
                 _TechTag('FastAPI'),
                 _TechTag('MongoDB'),
-                _TechTag('Gemini Vision'),
                 _TechTag('PyTorch'),
                 _TechTag('OpenCV'),
                 _TechTag('HuggingFace'),

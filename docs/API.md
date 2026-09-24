@@ -18,11 +18,12 @@ This document describes the **ChitraVision AI** REST APIs:
 
 | Kind | Shape |
 | --- | --- |
-| Success | `{ "success": true, "message": "<text>", ...payload }` |
+| Success | `{ "success": true, "message": "<text>", "data": { ... } }` |
 | Error   | `{ "success": false, "message": "<text>", "error": { "code": "CODE" } }` |
 
-On success the payload fields (`token`, `user`, `detections`, …) are spread at
-the **top level** so clients keep working across versions.
+On success the payload (`token`, `user`, `detections`, …) is nested under a
+**`data`** key. Error payloads are never wrapped in `data`. (A previous version
+spread payload fields at the top level; this was changed to a stable envelope.)
 
 ### HTTP status codes
 
@@ -79,26 +80,32 @@ Base URL: `http://localhost:4000` (dev) / your deployed backend.
 
 #### `POST /api/auth/register` — Create an account
 
+Registration requires a one-time code that the **server** generated and emailed
+(see [`POST /api/auth/send-otp`](#post-apiauthsend-otp--send-a-registration-verification-code)).
+The code is single-use, scoped to the email, and expires after 5 minutes.
+
 - **Auth:** none
 - **Headers:** `Content-Type: application/json`
 - **Body:**
   ```json
-  { "name": "Ayush", "email": "ayush@example.com", "password": "secret123" }
+  { "name": "Ayush", "email": "ayush@example.com", "password": "secret123", "otp": "123456" }
   ```
 - **Success 201:**
   ```json
   {
     "success": true,
     "message": "Account created successfully.",
-    "token": "eyJhbGciOi...",
-    "user": {
-      "_id": "667f...", "name": "Ayush", "email": "ayush@example.com",
-      "xp": 0, "premium": { "active": false, "expiresAt": null },
-      "createdAt": "2026-09-21T08:00:00.000Z", "updatedAt": "2026-09-21T08:00:00.000Z"
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": {
+        "_id": "667f...", "name": "Ayush", "email": "ayush@example.com",
+        "xp": 0, "premium": { "active": false, "expiresAt": null },
+        "createdAt": "2026-09-21T08:00:00.000Z", "updatedAt": "2026-09-21T08:00:00.000Z"
+      }
     }
   }
   ```
-- **Errors:** `400 VALIDATION_ERROR` missing fields / short password · `409 CONFLICT` email exists
+- **Errors:** `400 VALIDATION_ERROR` missing fields / short password / invalid or expired OTP · `409 CONFLICT` email exists
 
 #### `POST /api/auth/login` — Sign in
 
@@ -110,22 +117,30 @@ Base URL: `http://localhost:4000` (dev) / your deployed backend.
 #### `GET /api/auth/me` — Current profile
 
 - **Auth:** `Bearer <token>`
-- **Success 200:** `{ "success": true, "message": "Profile loaded.", "user": {...} }`
+- **Success 200:** `{ "success": true, "message": "Profile loaded.", "data": { "user": {...} } }`
 - **Error:** `401 UNAUTHORIZED`
 
 #### `PATCH /api/auth/me` — Update profile
 
 - **Auth:** `Bearer <token>`
 - **Body:** any of `{ "name", "phone", "location", "bio" }`
-- **Success 200:** `{ "user": {...} }`
+- **Success 200:** `{ "data": { "user": {...} } }`
 - **Errors:** `400 VALIDATION_ERROR` nothing to update · `401 UNAUTHORIZED`
 
-#### `POST /api/auth/send-otp` — Send a verification email (used during registration)
+#### `POST /api/auth/send-otp` — Send a registration verification code
 
 - **Auth:** none
-- **Body:** `{ "email": "...", "otp": "123456" }`
-- **Success 200:** `{ "success": true, "message": "OTP sent", "message": "OTP sent" }`
+- **Body:** `{ "email": "..." }` (the server generates a 6-digit code, stores a
+  bcrypt hash, and emails it)
+- **Success 200:** `{ "success": true, "message": "OTP sent" }`
 - **Errors:** `400 VALIDATION_ERROR` · `502 EMAIL_ERROR` mail server failure
+
+#### `POST /api/auth/change-password` — Change password while signed in
+
+- **Auth:** `Bearer <token>`
+- **Body:** `{ "currentPassword": "...", "newPassword": "newpass123" }`
+- **Success 200:** `{ "success": true, "message": "Password changed successfully." }`
+- **Errors:** `400 VALIDATION_ERROR` short password · `401 UNAUTHORIZED` wrong current password
 
 #### `POST /api/auth/forgot-password` — Request a password reset code
 
@@ -155,21 +170,23 @@ All endpoints require `Authorization: Bearer <token>`.
   {
     "success": true,
     "message": "Detections loaded.",
-    "detections": [
-      {
-        "_id": "6680...",
-        "userId": "667f...",
-        "modelId": "01",
-        "modelName": "ai-vs-human-image-detector",
-        "category": "image",
-        "fileName": "photo.png",
-        "verdict": "AI",
-        "confidence": 87.4,
-        "resultLabel": "AI Generated (87.4% Confidence)",
-        "createdAt": "2026-09-21T08:00:00.000Z",
-        "updatedAt": "2026-09-21T08:00:00.000Z"
-      }
-    ]
+    "data": {
+      "detections": [
+        {
+          "_id": "6680...",
+          "userId": "667f...",
+          "modelId": "01",
+          "modelName": "dima806/deepfake_vs_real_image_detection",
+          "category": "image",
+          "fileName": "photo.png",
+          "verdict": "AI",
+          "confidence": 87.4,
+          "resultLabel": "AI Generated (87.4% Confidence)",
+          "createdAt": "2026-09-21T08:00:00.000Z",
+          "updatedAt": "2026-09-21T08:00:00.000Z"
+        }
+      ]
+    }
   }
   ```
 - **Errors:** `401 UNAUTHORIZED`
@@ -207,12 +224,14 @@ the result in MongoDB and returns the prediction.
   {
     "success": true,
     "message": "Detection completed.",
-    "detection": { "id": "6680...", "verdict": "AI", "confidence": 87.4 },
-    "prediction": {
-      "verdict": "AI",
-      "confidence": 87.4,
-      "label": "AI Generated",
-      "riskLevel": "High"
+    "data": {
+      "detection": { "id": "6680...", "verdict": "AI", "confidence": 87.4 },
+      "prediction": {
+        "verdict": "AI",
+        "confidence": 87.4,
+        "label": "AI Generated",
+        "riskLevel": "High"
+      }
     }
   }
   ```
@@ -240,17 +259,17 @@ All endpoints require `Authorization: Bearer <token>`.
   {
     "success": true,
     "message": "Stats loaded.",
-    "stats": { "totalScans": 3, "fakesFound": 2, "cleared": 1, "xp": 30, "level": 1, "xpIntoLevel": 30, "xpForNext": 100 }
+    "data": { "stats": { "totalScans": 3, "fakesFound": 2, "cleared": 1, "xp": 30, "level": 1, "xpIntoLevel": 30, "xpForNext": 100 } }
   }
   ```
 
 #### `GET /api/user/premium` — Premium status
 
-- **Success 200:** `{ "premium": { "active": true, "expiresAt": "2026-10-21..." } }`
+- **Success 200:** `{ "data": { "premium": { "active": true, "expiresAt": "2026-10-21..." } } }`
 
 #### `POST /api/user/premium/activate` — Activate 30-day premium
 
-- **Success 200:** `{ "premium": { "active": true, "expiresAt": "..." } }`
+- **Success 200:** `{ "data": { "premium": { "active": true, "expiresAt": "..." } } }`
 
 ### 4. Admin APIs
 
@@ -261,16 +280,16 @@ All endpoints require `Authorization: Bearer <adminToken>` where the user's
 
 - **Success 200:**
   ```json
-  { "stats": { "totalUsers": 12, "totalDetections": 340, "fakesFound": 210, "cleared": 130, "scansToday": 4 } }
+  { "data": { "stats": { "totalUsers": 12, "totalDetections": 340, "fakesFound": 210, "cleared": 130, "scansToday": 4 } } }
   ```
 
 #### `GET /api/admin/users?page=1&limit=20` — List users (paginated)
 
-- **Success 200:** `{ "users": [...], "total": 12, "page": 1, "limit": 20 }`
+- **Success 200:** `{ "data": { "users": [...], "total": 12, "page": 1, "limit": 20 } }`
 
 #### `GET /api/admin/detections?page=1&limit=20` — List all detections
 
-- **Success 200:** `{ "detections": [...], "total": 340, "page": 1, "limit": 20 }`
+- **Success 200:** `{ "data": { "detections": [...], "total": 340, "page": 1, "limit": 20 } }`
 
 ### 5. Health
 
@@ -371,7 +390,7 @@ This is auto-generated from the Pydantic models in
 # 1. Register / login → capture JWT
 TOKEN=$(curl -s -X POST http://localhost:4000/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"a@example.com","password":"secret123"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+  -d '{"email":"a@example.com","password":"secret123"}' | python -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
 
 # 2. Upload an image → backend → FastAPI → HuggingFace → MongoDB
 curl -X POST http://localhost:4000/api/detections/analyze \
