@@ -38,7 +38,6 @@ dependencies:
   file_picker: ^11.0.2
   http: ^1.2.2
   image: ^4.3.0
-  mailer: ^6.4.1
   flutter_dotenv: ^5.1.0
 
   # Firebase & Google Auth

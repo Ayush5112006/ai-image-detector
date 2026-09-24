@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 import '../theme.dart';
 
 class PrivacyScreen extends StatefulWidget {
@@ -262,7 +263,28 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     );
 
     if (saved == true && mounted) {
-      _showSnack('Password updated successfully!');
+      try {
+        await ApiService.changePassword(
+          currentPassword: currentCtrl.text,
+          newPassword: newCtrl.text,
+        );
+        if (!mounted) return;
+        _showSnack('Password updated successfully!');
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        _showSnack(e.message, isSuccess: false);
+      } catch (e) {
+        if (!mounted) return;
+        _showSnack('Could not update the password. Please try again.', isSuccess: false);
+      } finally {
+        currentCtrl.dispose();
+        newCtrl.dispose();
+        confirmCtrl.dispose();
+      }
+    } else {
+      currentCtrl.dispose();
+      newCtrl.dispose();
+      confirmCtrl.dispose();
     }
   }
 

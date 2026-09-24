@@ -18,7 +18,7 @@ function mockPrediction(bytes, filename) {
     verdict: fake ? 'AI' : 'Real',
     confidence: Math.round((fake ? ai : 99 - ai) * 10) / 10,
     label: fake ? 'AI Generated' : 'Real / Human-made',
-    modelName: 'ai-vs-human-image-detector',
+    modelName: 'dima806/deepfake_vs_real_image_detection',
   };
 }
 

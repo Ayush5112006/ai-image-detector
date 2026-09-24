@@ -205,9 +205,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _HeroStat(value: '94%', label: 'Accuracy'),
+                              _HeroStat(value: 'AI', label: 'Detector'),
                               _HeroStat(value: '0', label: 'My Scans'),
-                              _HeroStat(value: '1.8s', label: 'Avg Speed'),
+                              _HeroStat(value: '24/7', label: 'Available'),
                             ],
                           ),
                         ),

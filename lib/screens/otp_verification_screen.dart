@@ -12,14 +12,12 @@ class OtpVerificationScreen extends StatefulWidget {
   final String name;
   final String email;
   final String password;
-  final String otp;
 
   const OtpVerificationScreen({
     super.key,
     required this.name,
     required this.email,
     required this.password,
-    required this.otp,
   });
 
   @override
@@ -32,7 +30,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
-  late String _otp;
 
   bool _isVerifying = false;
   bool _isResending = false;
@@ -43,7 +40,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   void initState() {
     super.initState();
-    _otp = widget.otp;
     _controllers = List.generate(
       _digitCount,
       (_) => TextEditingController(),
@@ -103,16 +99,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       setState(() => _errorText = 'Enter all 6 digits');
       return;
     }
-    if (_enteredCode != _otp) {
-      setState(() => _errorText = 'Incorrect code. Please try again.');
-      return;
-    }
     setState(() => _isVerifying = true);
     try {
+      // The backend verifies the code it issued during /send-otp.
       final user = await ApiService.register(
         name: widget.name,
         email: widget.email,
         password: widget.password,
+        otp: _enteredCode,
       );
       final prefs = await SharedPreferences.getInstance();
       if (user['name'] != null) {
@@ -137,12 +131,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Future<void> _resend() async {
     if (_secondsLeft > 0 || _isResending) return;
     setState(() => _isResending = true);
-    final newOtp = EmailService.generateOtp();
     try {
-      await EmailService.sendOtp(toEmail: widget.email, otp: newOtp);
+      await EmailService.sendOtp(toEmail: widget.email);
       if (!mounted) return;
       setState(() {
-        _otp = newOtp;
         _errorText = null;
         _isResending = false;
         for (final c in _controllers) {

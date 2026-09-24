@@ -42,7 +42,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
         return {
           'number': 'MODEL 02',
           'title': 'Deepfake Face Detection',
-          'subtitle': 'Detects face-swapped and manipulated faces using XceptionNet.',
+          'subtitle': 'Flags face-swapped and manipulated faces with the Hugging Face deepfake model.',
           'icon': Icons.face,
           'formats': 'PNG, JPEG, WEBP, AVIF, GIF, TIFF, BMP, RAW · Max 10MB',
         };
@@ -50,7 +50,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
         return {
           'number': 'MODEL 03',
           'title': 'Video Deepfake Analyzer',
-          'subtitle': 'Frame-by-frame analysis using OpenCV + per-frame inference.',
+          'subtitle': 'Sample frames are extracted with OpenCV and classified frame by frame.',
           'icon': Icons.movie_outlined,
           'formats': 'MP4, MOV, AVI · Max 50MB',
         };
@@ -59,7 +59,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
         return {
           'number': 'MODEL 04',
           'title': 'AI Content Classification',
-          'subtitle': 'Multi-modal ViT classifier for synthetic content.',
+          'subtitle': 'Analyzes synthetic content using the shared deepfake detection model.',
           'icon': Icons.auto_awesome,
           'formats': 'PNG, JPEG, WEBP, AVIF, GIF, TIFF, BMP, RAW · Max 10MB',
         };
@@ -130,6 +130,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
   void _cancelAnalysis() {
     _cancelled = true;
     _activeClient?.close();
+    _activeClient = null;
     if (mounted) {
       setState(() {
         _isAnalyzing = false;
@@ -146,6 +147,15 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
     }
   }
 
+  @override
+  void dispose() {
+    // Abort any in-flight upload; never leak the http.Client.
+    _cancelled = true;
+    _activeClient?.close();
+    _activeClient = null;
+    super.dispose();
+  }
+
   Future<void> _startAnalysis() async {
     if (_isAnalyzing || _selectedFileBytes == null) return;
     _cancelled = false;
@@ -159,7 +169,11 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
     // Gentle per-stage pacing so the user always sees progress.
     const step = Duration(milliseconds: 550);
     for (final milestone in _milestones) {
-      if (_cancelled || !mounted) return;
+      if (_cancelled || !mounted) {
+        _activeClient?.close();
+        _activeClient = null;
+        return;
+      }
       setState(() => _stage = milestone);
       await Future.delayed(step);
     }
@@ -359,7 +373,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                               ),
                               const SizedBox(height: 12),
                               const Text(
-                                'Ateeqq/ai-vs-human-image-detector',
+                                'dima806/deepfake_vs_real_image_detection',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
@@ -369,7 +383,9 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                               ),
                               const SizedBox(height: 6),
                               const Text(
-                                'A fine-tuned model trained on 60,000 AI-generated and 60,000 human images. Based on Siglip architecture.',
+                                'A convolutional image-classification model hosted on Hugging Face, '
+                                'trained to distinguish real media from AI-generated / deepfake media. '
+                                'ChitraVision routes image, face and sampled video frames through this model.',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Color(0xFF666666),
@@ -398,15 +414,15 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                           children: [
-                            _buildSpecCard('Model Size', '92.9M params', Icons.settings_input_component),
-                            _buildSpecCard('Tensor Type', 'F32', Icons.sd_storage),
-                            _buildSpecCard('Architecture', 'Siglip Classifier', Icons.psychology),
-                            _buildSpecCard('License', 'Apache-2.0', Icons.description),
+                            _buildSpecCard('Architecture', 'CNN Classifier', Icons.settings_input_component),
+                            _buildSpecCard('Task', 'Binary image classification', Icons.sd_storage),
+                            _buildSpecCard('Framework', 'PyTorch / transformers', Icons.psychology),
+                            _buildSpecCard('Hosting', 'Hugging Face', Icons.description),
                           ],
                         ),
                         const SizedBox(height: 24),
                         const Text(
-                          'TRAINING & EVALUATION METRICS',
+                          'HOW RESULTS WORK',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -416,25 +432,34 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                         ),
                         const SizedBox(height: 12),
                         Container(
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFE0E0E0)),
+                            color: const Color(0xFFEFF4FB),
+                            border: Border.all(color: const Color(0xFFD6E4F5)),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Column(
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildMetricRow('Final Test Accuracy', '99.23%', isBold: true),
-                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                              _buildMetricRow('Final Test F1 Score', '0.9923', isBold: true),
-                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                              _buildMetricRow('Training Epochs', '5.0'),
-                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                              _buildMetricRow('Total Compute', '51.65 GFLOPs'),
-                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                              _buildMetricRow('Training Loss', '0.0799'),
-                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                              _buildMetricRow('Training Runtime', '2h 39m 49s'),
-                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                              _buildMetricRow('Evaluation Loss', '0.0551'),
+                              Text(
+                                'What the verdict means',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF333333),
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'The model returns a label (AI Generated or Real / Human-made) plus a '
+                                'confidence score from 0–100%. Confidence reflects how strongly the model '
+                                'matched its training data — it is an estimate, not a guarantee.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF666666),
+                                  height: 1.4,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -456,7 +481,7 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Users Report: Overfitting',
+                                      'Not a guarantee',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
@@ -465,7 +490,9 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                                     ),
                                     SizedBox(height: 4),
                                     Text(
-                                      'Some users have reported overfitting issues in real-world scenarios. Predictions may have higher false positive rates for certain lighting conditions or stylized human art.',
+                                      'Detection is imperfect. Heavily compressed, stylized or edited media can '
+                                      'produce false positives or false negatives. Use the result as a signal, '
+                                      'not absolute proof.',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Color(0xFF856404),
@@ -528,33 +555,6 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricRow(String label, String value, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: isBold ? const Color(0xFF333333) : const Color(0xFF666666),
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: isBold ? const Color(0xFF007AFF) : const Color(0xFF333333),
             ),
           ),
         ],

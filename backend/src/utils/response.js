@@ -1,13 +1,11 @@
 /* Shared HTTP response helpers.
  *
- * Success shape:
- *   { "success": true, "message": "...", ...payload }
- * The payload is spread at the top level so existing clients that read
- * `token`, `user`, `detection`, `detections` etc. keep working while the
- * standardized envelope stays consistent.
+ * Standardized envelope (consistent across the whole API):
+ *   Success: { "success": true, "message": "...", "data": { ... } }
+ *   Error:   { "success": false, "message": "...", "error": { "code": "..." } }
  *
- * Error shape:
- *   { "success": false, "message": "...", "error": { "code": "..." } }
+ * All payload fields are wrapped under a single `data` key so clients have a
+ * stable way to read the result regardless of which resource was queried.
  */
 
 export class AppError extends Error {
@@ -20,7 +18,7 @@ export class AppError extends Error {
 }
 
 export function sendSuccess(res, message, payload = {}, status = 200) {
-  return res.status(status).json({ success: true, message, ...payload });
+  return res.status(status).json({ success: true, message, data: payload });
 }
 
 export function sendCreated(res, message, payload = {}) {

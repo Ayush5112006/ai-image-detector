@@ -37,9 +37,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
     {
       'icon': Icons.shield_outlined,
-      'title': '94% Accurate & Secure',
+      'title': 'Private & Secure',
       'desc':
-          'Powered by EfficientNet, XceptionNet, and ViT models trained on millions of real and synthetic samples.',
+          'Powered by a dedicated Hugging Face deepfake detection model that flags AI-generated and manipulated media.',
       'tag': 'Trusted',
     },
   ];

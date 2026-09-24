@@ -29,14 +29,35 @@ function sanitize(user) {
   return u;
 }
 
+function generateOtp() {
+  return crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+}
+
+async function storeOtp(email, purpose, ttlMinutes) {
+  const otp = generateOtp();
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+  const otpHash = await bcrypt.hash(otp, 10);
+  await PasswordReset.updateMany(
+    { email, purpose, used: false },
+    { $set: { used: true } },
+  );
+  await PasswordReset.create({ email, purpose, otpHash, expiresAt });
+  return otp;
+}
+
 router.post('/send-otp', async (req, res, next) => {
-  const { email, otp } = req.body || {};
-  if (!email || !otp) {
-    return sendError(res, 400, ErrorCodes.VALIDATION, 'Email and OTP are required');
+  const { email } = req.body || {};
+  if (!email || !String(email).trim()) {
+    return sendError(res, 400, ErrorCodes.VALIDATION, 'Email is required');
   }
   try {
-    await sendOtpEmail({ toEmail: String(email).trim(), otp: String(otp) });
-    return sendSuccess(res, 'OTP sent', { message: 'OTP sent' });
+    // The OTP is generated and stored server-side; the client only receives
+    // a delivery receipt. It must be passed back to /register to complete
+    // account creation.
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const otp = await storeOtp(normalizedEmail, 'register', 5);
+    await sendOtpEmail({ toEmail: normalizedEmail, otp });
+    return sendSuccess(res, 'OTP sent');
   } catch (err) {
     return sendError(
       res, 502, ErrorCodes.EMAIL_ERROR,
@@ -61,15 +82,7 @@ router.post('/forgot-password', async (req, res, next) => {
       return sendSuccess(res, genericMessage, { message: genericMessage });
     }
 
-    const otp = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    const otpHash = await bcrypt.hash(otp, 10);
-
-    await PasswordReset.updateMany(
-      { email: normalizedEmail, used: false },
-      { $set: { used: true } },
-    );
-    await PasswordReset.create({ email: normalizedEmail, otpHash, expiresAt });
+    const otp = await storeOtp(normalizedEmail, 'password', 10);
     try {
       await sendResetOtpEmail({ toEmail: normalizedEmail, otp });
     } catch (err) {
@@ -101,6 +114,7 @@ router.post('/reset-password', async (req, res, next) => {
     const normalizedEmail = String(email).toLowerCase().trim();
     const reset = await PasswordReset.findOne({
       email: normalizedEmail,
+      purpose: 'password',
       used: false,
       expiresAt: { $gt: new Date() },
     }).sort({ createdAt: -1 });
@@ -146,9 +160,12 @@ router.post('/reset-password', async (req, res, next) => {
 
 router.post('/register', async (req, res, next) => {
   try {
-    const { name, email, password } = req.body || {};
-    if (!name || !email || !password) {
-      return sendError(res, 400, ErrorCodes.VALIDATION, 'Name, email and password are required');
+    const { name, email, password, otp } = req.body || {};
+    if (!name || !email || !password || !otp) {
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'Name, email, password and verification code are required',
+      );
     }
     if (String(password).length < 6) {
       return sendError(res, 400, ErrorCodes.VALIDATION, 'Password must be at least 6 characters');
@@ -158,12 +175,32 @@ router.post('/register', async (req, res, next) => {
     if (existing) {
       return sendError(res, 409, ErrorCodes.CONFLICT, 'An account with this email already exists');
     }
+    const reset = await PasswordReset.findOne({
+      email: normalizedEmail,
+      purpose: 'register',
+      used: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+    if (!reset) {
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'Invalid or expired verification code. Please request a new one.',
+      );
+    }
+    const okOtp = await bcrypt.compare(String(otp).trim(), reset.otpHash);
+    if (!okOtp) {
+      return sendError(res, 400, ErrorCodes.VALIDATION, 'Invalid verification code.');
+    }
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
       name: String(name).trim(),
       email: normalizedEmail,
       password: hashed,
     });
+    await PasswordReset.updateOne(
+      { _id: reset._id },
+      { $set: { used: true } },
+    );
     sendWelcomeEmail({
       toEmail: normalizedEmail,
       name: user.name,
@@ -226,6 +263,47 @@ router.patch('/me', authRequired, async (req, res, next) => {
       runValidators: true,
     }).select('-password');
     return sendSuccess(res, 'Profile updated.', { user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/change-password', authRequired, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'Current and new password are required',
+      );
+    }
+    if (String(newPassword).length < 6) {
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'New password must be at least 6 characters',
+      );
+    }
+    const user = await User.findById(req.user._id).select('+password');
+    const ok = await bcrypt.compare(String(currentPassword), user.password);
+    if (!ok) {
+      return sendError(
+        res, 400, ErrorCodes.VALIDATION,
+        'Current password is incorrect.',
+      );
+    }
+    const hashed = await bcrypt.hash(String(newPassword), 10);
+    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
+
+    sendPasswordChangedEmail({
+      toEmail: user.email,
+      name: user.name,
+    }).then(() => {
+      logger.info('password-changed email sent', { userId: user._id.toString() });
+    }).catch((err) => {
+      logger.warn('password-changed email failed', { userId: user._id.toString(), error: err.message });
+    });
+
+    return sendSuccess(res, 'Password updated successfully.');
   } catch (err) {
     next(err);
   }

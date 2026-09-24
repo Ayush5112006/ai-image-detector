@@ -1,5 +1,4 @@
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
@@ -41,12 +40,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
-    final otp = EmailService.generateOtp();
     try {
-      await EmailService.sendOtp(toEmail: email, otp: otp);
+      // The backend generates, stores and emails the OTP. The app never knows
+      // the code, so verification can only succeed with a real email.
+      await EmailService.sendOtp(toEmail: email);
       if (!mounted) return;
       setState(() => _isLoading = false);
-
 
       Navigator.push(
         context,
@@ -55,89 +54,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             name: _nameController.text.trim(),
             email: email,
             password: _passwordController.text,
-            otp: otp,
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-
-      // On web the EmailJS template may not be configured to deliver mail.
-      // As a dev fallback, show the code so the flow can still be tested.
-      if (kIsWeb) {
-        final proceed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            title: const Text('Verify your email'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Email could not be sent (check your EmailJS template). '
-                  'Use this code to verify for local testing:',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceAlt,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Text(
-                    otp,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 6,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                ),
-                child: const Text('Continue'),
-              ),
-            ],
-          ),
-        );
-        if (proceed != true || !mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OtpVerificationScreen(
-              name: _nameController.text.trim(),
-              email: email,
-              password: _passwordController.text,
-              otp: otp,
-            ),
-          ),
-        );
-        return;
-      }
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not send the verification code: $e'),

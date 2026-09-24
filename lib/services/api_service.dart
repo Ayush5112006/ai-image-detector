@@ -85,11 +85,12 @@ class ApiService {
     required String name,
     required String email,
     required String password,
+    required String otp,
   }) async {
     final data = await _request(
       'POST',
       '/api/auth/register',
-      body: {'name': name, 'email': email, 'password': password},
+      body: {'name': name, 'email': email, 'password': password, 'otp': otp},
     );
     await _acceptSession(data);
     return data['user'] as Map<String, dynamic>? ?? {};
@@ -124,6 +125,16 @@ class ApiService {
       _request('POST', '/api/auth/reset-password', body: {
         'email': email,
         'otp': otp,
+        'newPassword': newPassword,
+      });
+
+  /// Changes the password for the currently signed-in user.
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _request('POST', '/api/auth/change-password', body: {
+        'currentPassword': currentPassword,
         'newPassword': newPassword,
       });
 
@@ -186,7 +197,7 @@ class ApiService {
       final res = await http.Response.fromStream(streamed).timeout(_uploadTimeout);
       final data = _decodeBody(res);
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        return data ?? {};
+        return _unwrap(data);
       }
       final message = _extractMessage(data);
       if (res.statusCode == 401) await clearSession();
@@ -280,12 +291,22 @@ class ApiService {
 
     final data = _decodeBody(res);
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return data ?? {};
+      return _unwrap(data);
     }
 
     final message = _extractMessage(data);
     if (res.statusCode == 401) await clearSession();
     throw ApiException(message, code: _extractCode(data));
+  }
+
+  /// Extracts the payload from the standardized `{ success, message, data }`
+  /// envelope. Falls back to the raw body for resilience against servers
+  /// that already returned an unwrapped payload.
+  static Map<String, dynamic> _unwrap(Map<String, dynamic>? body) {
+    if (body == null) return {};
+    final data = body['data'];
+    if (data is Map<String, dynamic>) return data;
+    return body;
   }
 
   static Map<String, dynamic>? _decodeBody(http.Response res) {

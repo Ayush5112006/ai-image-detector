@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import 'dotenv/config';
+import bcrypt from 'bcryptjs';
 
 import { app, connectDb } from '../src/app.js';
 import mongoose from 'mongoose';
@@ -122,24 +123,47 @@ test.after(async () => {
   await mongoose.connection.close();
 });
 
+/** Seeds a purpose-scoped OTP record so the flow never needs real email. */
+async function seedOtp(email, purpose, otp = '123456') {
+  const otpHash = await bcrypt.hash(otp, 4);
+  await mongoose.models.PasswordReset.create({
+    email,
+    purpose,
+    otpHash,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+  });
+  return otp;
+}
+
 test('full pipeline: auth -> upload -> ML -> MongoDB -> history', async () => {
   const email = `itest_${process.pid}_${Date.now()}@example.com`;
 
-  // 1. Signup
+  // 0. A register OTP is issued server-side and must be supplied to register.
+  const otp = await seedOtp(email, 'register');
+
+  // 1. Signup (verification code required)
   let r = await jsonRequest(api.port, 'POST', '/api/auth/register', {
-    body: { name: 'Integ Test', email, password: 'secret123' },
+    body: { name: 'Integ Test', email, password: 'secret123', otp },
   });
   assert.equal(r.status, 201);
   assert.equal(r.body.success, true);
-  assert.ok(r.body.token, 'register returns a JWT');
-  const token = r.body.token;
+  assert.ok(r.body.data.token, 'register returns a JWT');
+  const token = r.body.data.token;
+
+  // 1b. The register OTP is scoped to the email it was issued for; a code
+  // issued for `email` cannot be reused to register a different account.
+  r = await jsonRequest(api.port, 'POST', '/api/auth/register', {
+    body: { name: 'Integ Test 2', email: `dup_${email}`, password: 'secret123', otp },
+  });
+  assert.equal(r.status, 400, 'register OTP is email-scoped and single-use');
+  assert.equal(r.body.error.code, 'VALIDATION_ERROR');
 
   // 2. Login with the same credentials
   r = await jsonRequest(api.port, 'POST', '/api/auth/login', {
     body: { email, password: 'secret123' },
   });
   assert.equal(r.status, 200);
-  assert.equal(r.body.user.email, email);
+  assert.equal(r.body.data.user.email, email);
 
   // 3. Invalid login is rejected
   r = await jsonRequest(api.port, 'POST', '/api/auth/login', {
@@ -170,20 +194,20 @@ test('full pipeline: auth -> upload -> ML -> MongoDB -> history', async () => {
     },
   });
   assert.equal(r.status, 201, JSON.stringify(r.body));
-  assert.equal(r.body.prediction.verdict, 'AI');
-  assert.ok(r.body.detection._id);
+  assert.equal(r.body.data.prediction.verdict, 'AI');
+  assert.ok(r.body.data.detection._id);
 
   // 7. The detection is persisted and returned in history
   r = await jsonRequest(api.port, 'GET', '/api/detections', { token });
   assert.equal(r.status, 200);
-  const saved = r.body.detections.find((d) => d.fileName === 'sample.png');
+  const saved = r.body.data.detections.find((d) => d.fileName === 'sample.png');
   assert.ok(saved, 'detection saved to MongoDB and returned in history');
   assert.equal(saved.verdict, 'AI');
 
   // 8. User stats reflect the scan
   r = await jsonRequest(api.port, 'GET', '/api/user/stats', { token });
   assert.equal(r.status, 200);
-  assert.ok(r.body.stats.totalScans >= 1);
+  assert.ok(r.body.data.stats.totalScans >= 1);
 
   // 9. Non-admin cannot call admin APIs
   r = await jsonRequest(api.port, 'GET', '/api/admin/stats/overview', { token });
@@ -221,10 +245,68 @@ test('full pipeline: auth -> upload -> ML -> MongoDB -> history', async () => {
   try {
     r = await jsonRequest(api.port, 'GET', '/api/admin/stats/overview', { token });
     assert.equal(r.status, 200);
-    assert.ok(r.body.stats.totalUsers >= 1);
+    assert.ok(r.body.data.stats.totalUsers >= 1);
   } finally {
-    // Cleanup test user and its detections.
+    // Cleanup test user, its detections and any OTP records.
     await mongoose.models.Detection.deleteMany({ userId: adminUser._id });
+    await mongoose.models.PasswordReset.deleteMany({
+      email: { $in: [email, `dup_${email}`] },
+    });
     await adminUser.deleteOne();
   }
+});
+
+test('password reset: forgot-password -> reset-password -> change-password', async () => {
+  const email = `reset_${process.pid}_${Date.now()}@example.com`;
+  const otp = await seedOtp(email, 'register');
+  let r = await jsonRequest(api.port, 'POST', '/api/auth/register', {
+    body: { name: 'Reset Test', email, password: 'secret123', otp },
+  });
+  assert.equal(r.status, 201);
+  const token = r.body.data.token;
+
+  // Wrong current password is rejected.
+  r = await jsonRequest(api.port, 'POST', '/api/auth/change-password', {
+    token,
+    body: { currentPassword: 'wrong-pass', newPassword: 'newsecret1' },
+  });
+  assert.equal(r.status, 400);
+  assert.equal(r.body.error.code, 'VALIDATION_ERROR');
+
+  // Correct current password updates the password.
+  r = await jsonRequest(api.port, 'POST', '/api/auth/change-password', {
+    token,
+    body: { currentPassword: 'secret123', newPassword: 'newsecret1' },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.success, true);
+
+  // New password works for login.
+  r = await jsonRequest(api.port, 'POST', '/api/auth/login', {
+    body: { email, password: 'newsecret1' },
+  });
+  assert.equal(r.status, 200);
+
+  // forgot-password (generic response, no account enumeration).
+  r = await jsonRequest(api.port, 'POST', '/api/auth/forgot-password', {
+    body: { email },
+  });
+  assert.equal(r.status, 200);
+  assert.match(r.body.message, /If an account exists/);
+
+  // Seed a password-purpose OTP and reset the password.
+  const resetOtp = await seedOtp(email, 'password');
+  r = await jsonRequest(api.port, 'POST', '/api/auth/reset-password', {
+    body: { email, otp: resetOtp, newPassword: 'brandnew1' },
+  });
+  assert.equal(r.status, 200);
+
+  r = await jsonRequest(api.port, 'POST', '/api/auth/login', {
+    body: { email, password: 'brandnew1' },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.data.user.email, email);
+
+  await mongoose.models.User.deleteOne({ email });
+  await mongoose.models.PasswordReset.deleteMany({ email });
 });
