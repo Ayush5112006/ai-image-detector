@@ -263,13 +263,6 @@ class _ModelDetailScreenState extends State<ModelDetailScreen>
           _resultMessage = null;
           _resultVerdict = null;
         });
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Selected $_selectedFileName'),
-            backgroundColor: AppColors.success,
-          ),
-        );
       }
     } catch (e) {
       if (!mounted) return;
