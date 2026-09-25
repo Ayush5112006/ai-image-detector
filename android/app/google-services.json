@@ -5,6 +5,7 @@
     "storage_bucket": "chitravisionai-de611.firebasestorage.app"
   },
   "client": [
+    1
     {
       "client_info": {
         "mobilesdk_app_id": "1:711374283130:android:a5a5f621383a1a740776c3",
@@ -12,7 +13,20 @@
           "package_name": "com.chitravisionai.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "711374283130-pnpd5edkdpi79oui079qa38ar46db357.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.chitravisionai.app",
+            "certificate_hash": "0dbc38f0ed2d80ad772df747c0bb6ee70d0d51b5"
+          }
+        },
+        {
+          "client_id": "711374283130-efnc4905n0o7il7814f5f3skiotm40uq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDwXljmyHTTIvT8f81BWVLGrVw6jgIneDo"
@@ -20,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "711374283130-efnc4905n0o7il7814f5f3skiotm40uq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
