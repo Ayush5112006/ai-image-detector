@@ -5,7 +5,6 @@
     "storage_bucket": "chitravisionai-de611.firebasestorage.app"
   },
   "client": [
-    1
     {
       "client_info": {
         "mobilesdk_app_id": "1:711374283130:android:a5a5f621383a1a740776c3",
