@@ -23,7 +23,7 @@ def _int(value, default):
         return default
 
 
-MODEL_ID = os.getenv("MODEL_ID", "dima806/deepfake_vs_real_image_detection")
+MODEL_ID = os.getenv("MODEL_ID", "manishpandey68/detection-of-ai-generated-images-through-ViT")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 MOCK_INFERENCE = _bool(os.getenv("MOCK_INFERENCE"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()

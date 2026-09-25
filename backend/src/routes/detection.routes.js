@@ -68,7 +68,7 @@ router.post('/analyze', uploadMedia.single('file'), async (req, res, next) => {
     const detection = await Detection.create({
       userId: req.user._id,
       modelId,
-      modelName: result.modelName || 'dima806/deepfake_vs_real_image_detection',
+      modelName: result.modelName || 'manishpandey68/detection-of-ai-generated-images-through-ViT',
       category,
       fileName: req.file.originalname,
       verdict: result.verdict,

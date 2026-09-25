@@ -1,8 +1,10 @@
 """ChitraVision ML Service — FastAPI entrypoint.
 
-Runs the dima806/deepfake_vs_real_image_detection HuggingFace model behind a
-small REST API used by the Node.js backend.
+Runs a HuggingFace ViT image-classification model (AI-generated image
+detection) behind a small REST API used by the Node.js backend.
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,19 +13,30 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import MOCK_INFERENCE, MODEL_ID
 from .logger import get_logger
+from .model import get_predictor
 from .predict import router as predict_router
 
 logger = get_logger("ml_service.main")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Load the model once when the server starts (skipped in mock mode).
+    # Requests reuse the process-wide singleton — no per-request downloads.
+    get_predictor().load()
+    yield
+
 
 app = FastAPI(
     title="ChitraVision ML Service",
     description=(
         "Deepfake / AI-generated content detection using "
-        "`dima806/deepfake_vs_real_image_detection`."
+        "`manishpandey68/detection-of-ai-generated-images-through-ViT`."
     ),
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

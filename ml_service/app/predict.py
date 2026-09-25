@@ -164,12 +164,14 @@ async def predict_video(
         total = len(results)
         ai_share = len(ai_scores) / total
         result = {
+            "prediction": "AI Generated" if ai_share >= 0.5 else "Real / Human-made",
             "verdict": "AI" if ai_share >= 0.5 else "Real",
             "confidence": round(sum(ai_scores) / total, 1)
             if ai_share >= 0.5
             else round(sum(real_scores) / total, 1),
             "label": ("AI Generated" if ai_share >= 0.5 else "Real / Human-made")
             + f" ({ai_share:.0%} frames flagged)",
+            "model": MODEL_ID,
             "modelName": MODEL_ID,
             "processingMs": int((time.perf_counter() - started) * 1000),
             "framesAnalyzed": total,
