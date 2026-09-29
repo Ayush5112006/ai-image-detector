@@ -26,6 +26,15 @@ def _int(value, default):
 MODEL_ID = os.getenv("MODEL_ID", "manishpandey68/detection-of-ai-generated-images-through-ViT")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 MOCK_INFERENCE = _bool(os.getenv("MOCK_INFERENCE"))
+
+# Set USE_LOCAL_MODEL=1 to use the local EfficientNet-B0 checkpoint instead
+# of downloading the HuggingFace ViT model. Defaults to True when the file is
+# present in ml_service/models/.
+USE_LOCAL_MODEL = _bool(os.getenv("USE_LOCAL_MODEL", "true"))
+LOCAL_MODEL_PATH = os.getenv(
+    "LOCAL_MODEL_PATH",
+    str(os.path.join(os.path.dirname(__file__), "..", "models", "deepfake_efficientnet_b0.pt")),
+)
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 MAX_IMAGE_SIZE = _int(os.getenv("MAX_IMAGE_SIZE_MB", "10"), 10) * 1024 * 1024
 MAX_VIDEO_SIZE = _int(os.getenv("MAX_VIDEO_SIZE_MB", "50"), 50) * 1024 * 1024

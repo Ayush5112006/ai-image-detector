@@ -11,9 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .config import MOCK_INFERENCE, MODEL_ID
+from .config import MOCK_INFERENCE, MODEL_ID, USE_LOCAL_MODEL
 from .logger import get_logger
 from .model import get_predictor
+from .local_model import get_local_predictor
 from .predict import router as predict_router
 
 logger = get_logger("ml_service.main")
@@ -21,19 +22,26 @@ logger = get_logger("ml_service.main")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Load the model once when the server starts (skipped in mock mode).
-    # Requests reuse the process-wide singleton — no per-request downloads.
-    get_predictor().load()
+    # Choose model backend: local EfficientNet-B0 or HuggingFace ViT.
+    # Requests reuse the process-wide singleton — no per-request loading.
+    if USE_LOCAL_MODEL:
+        logger.info("using local EfficientNet-B0 model", {})
+        get_local_predictor().load()
+    else:
+        logger.info("using HuggingFace ViT model", {"model": MODEL_ID})
+        get_predictor().load()
     yield
 
 
 app = FastAPI(
     title="ChitraVision ML Service",
     description=(
-        "Deepfake / AI-generated content detection using "
-        "`manishpandey68/detection-of-ai-generated-images-through-ViT`."
+        "Deepfake / AI-generated content detection using a local EfficientNet-B0 "
+        "checkpoint (deepfake_efficientnet_b0.pt) or "
+        "`manishpandey68/detection-of-ai-generated-images-through-ViT` (HuggingFace). "
+        "Set USE_LOCAL_MODEL=0 in .env to switch to the HuggingFace model."
     ),
-    version="2.0.0",
+    version="2.1.0",
     docs_url="/docs",
     openapi_url="/openapi.json",
     lifespan=lifespan,

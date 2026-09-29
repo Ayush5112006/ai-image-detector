@@ -13,14 +13,23 @@ from .config import (
     MAX_VIDEO_SIZE,
     MOCK_INFERENCE,
     MODEL_ID,
+    USE_LOCAL_MODEL,
     FRAME_SAMPLE_INTERVAL,
 )
 from .logger import get_logger
 from .model import ModelLoadError, get_predictor
+from .local_model import LocalModelLoadError, get_local_predictor
 from .schemas import PredictionResponse, PredictionData
 
 router = APIRouter(tags=["prediction"])
 logger = get_logger("ml_service.predict")
+
+
+def _get_active_predictor():
+    """Return the currently configured predictor (local or HuggingFace)."""
+    if USE_LOCAL_MODEL:
+        return get_local_predictor()
+    return get_predictor()
 
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".tiff", ".tif", ".bmp", ".avif"}
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
@@ -70,7 +79,8 @@ def _open_image(bytes_buffer):
 
 @router.get("/health")
 def health():
-    return {"status": "ok", "model": MODEL_ID, "mock": MOCK_INFERENCE}
+    active_model = "local/deepfake_efficientnet_b0" if USE_LOCAL_MODEL else MODEL_ID
+    return {"status": "ok", "model": active_model, "mock": MOCK_INFERENCE, "useLocalModel": USE_LOCAL_MODEL}
 
 
 @router.post(
@@ -95,9 +105,9 @@ async def predict_image(
     image = await run_in_threadpool(_open_image, io.BytesIO(raw))
 
     try:
-        predictor = get_predictor()
+        predictor = _get_active_predictor()
         result = await run_in_threadpool(predictor.predict_pil, image)
-    except ModelLoadError as err:
+    except (ModelLoadError, LocalModelLoadError) as err:
         raise _http_error(503, "MODEL_LOAD_ERROR", str(err)) from err
     except RuntimeError as err:
         raise _http_error(502, "INFERENCE_ERROR", "Model inference failed on the provided image.") from err
@@ -134,7 +144,7 @@ async def predict_video(
     _validate_video_upload(file.filename, file.size or 0)
     raw = await file.read()
 
-    predictor = get_predictor()
+    predictor = _get_active_predictor()
     if predictor.mock:
         # Mock path needs no OpenCV or model weights.
         image = Image.frombytes("RGB", (8, 8), raw[:192].ljust(192, b"\x00"))
