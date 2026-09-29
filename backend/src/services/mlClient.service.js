@@ -8,7 +8,7 @@ function getFastApiUrl() {
 }
 
 /* Deterministic pseudo-result used when the ML service is absent
- * (MOCK_ML=1) — useful for local development and automated tests. */
+ * (MOCK_ML=1) -- useful for local development and automated tests. */
 function mockPrediction(bytes, filename) {
   let seed = 0;
   for (const b of bytes.slice(0, 512)) seed = (seed + b) % 253;
@@ -18,7 +18,7 @@ function mockPrediction(bytes, filename) {
     verdict: fake ? 'AI' : 'Real',
     confidence: Math.round((fake ? ai : 99 - ai) * 10) / 10,
     label: fake ? 'AI Generated' : 'Real / Human-made',
-    modelName: 'manishpandey68/detection-of-ai-generated-images-through-ViT',
+    modelName: 'EfficientNet-B0 (Local)',
   };
 }
 
@@ -55,32 +55,53 @@ async function mlFetch(path, formData, requestId) {
   }
 }
 
+/**
+ * Resolve the FastAPI endpoint path based on model and media type.
+ *
+ *  modelId=02 (Face Deepfake)  -> /predict/face
+ *    Face crops are extracted server-side by the ML service.
+ *
+ *  modelId=03 (Video Analyzer) -> /predict/video
+ *    Frames + face crops extracted server-side by the ML service.
+ *
+ *  All other modelIds with a video mimetype -> /predict/video
+ *  All other modelIds with an image mimetype -> /predict/image
+ */
+function resolveMLPath(modelId, mimetype) {
+  const id = String(modelId || '01');
+  if (id === '02') return '/predict/face';
+  if (id === '03') return '/predict/video';
+  return mimetype?.startsWith('video') ? '/predict/video' : '/predict/image';
+}
+
 /** Sends media bytes to the FastAPI ML service and returns a normalized result. */
-export async function analyzeMedia({ bytes, filename, mimetype, requestId }) {
-  const mediaType = mimetype?.startsWith('video') ? 'video' : 'image';
+export async function analyzeMedia({ bytes, filename, mimetype, modelId, requestId }) {
+  const mlPath = resolveMLPath(modelId, mimetype);
+  const mediaLabel = mlPath.replace('/predict/', '');
+
   // Explicit mock (MOCK_ML=1) OR no ML service configured: use the
   // deterministic mock so servers without a real FastAPI backend still
   // return predictions instead of failing.
   if (process.env.MOCK_ML === '1' || !getFastApiUrl()) {
     logger.info('ML call mocked', {
-      requestId, mediaType, filename,
+      requestId, mediaLabel, filename,
       mock: process.env.MOCK_ML === '1' ? 'explicit' : 'no-ml-configured',
     });
     const p = mockPrediction(bytes, filename);
-    return { ...p, mediaType };
+    return { ...p, mediaType: mediaLabel };
   }
 
   const form = new FormData();
   form.append('file', new Blob([bytes], { type: mimetype }), filename);
-  logger.info('ML request started', { requestId, mediaType, filename });
+  logger.info('ML request started', { requestId, mediaLabel, filename, mlPath });
   const started = Date.now();
-  const data = await mlFetch(`/predict/${mediaType}`, form, requestId);
+  const data = await mlFetch(mlPath, form, requestId);
   logger.info('ML request completed', {
     requestId,
-    mediaType,
+    mediaLabel,
     durationMs: Date.now() - started,
   });
-  // FastAPI returns { success, message, data: { … } }; normalize to the payload.
+  // FastAPI returns { success, message, data: { ... } }; normalize to the payload.
   const payload = data?.data ?? data;
-  return { ...payload, mediaType };
-}
+  return { ...payload, mediaType: mediaLabel };
+}

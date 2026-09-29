@@ -1,4 +1,4 @@
-"""Pydantic response models — also generate the OpenAPI schema."""
+﻿"""Pydantic response models -- also generate the OpenAPI schema."""
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -24,13 +24,16 @@ class PredictionData(BaseModel):
     label: str = Field(..., description="Human readable class label.")
     rawLabel: Optional[str] = Field(
         None,
-        description="Model's own top-1 class from its id2label mapping.",
+        description="Model's own top-1 class label.",
     )
-    model: str = Field(..., description="Hugging Face model id used for inference.")
-    modelName: str = Field(..., description="Model id used for inference.")
+    model: str = Field(..., description="Model identifier used for inference.")
+    modelName: str = Field(..., description="Display name of the model used.")
     processingMs: int = Field(0, description="Inference time in milliseconds.")
     framesAnalyzed: Optional[int] = Field(
         None, description="For video input, number of frames analyzed."
+    )
+    facesDetected: Optional[int] = Field(
+        None, description="For face input, number of faces detected in the image."
     )
 
 

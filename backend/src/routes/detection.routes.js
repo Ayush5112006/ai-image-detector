@@ -62,6 +62,7 @@ router.post('/analyze', uploadMedia.single('file'), async (req, res, next) => {
       bytes: req.file.buffer,
       filename: req.file.originalname,
       mimetype: req.file.mimetype,
+      modelId,
       requestId: req.id,
     });
 
@@ -90,6 +91,8 @@ router.post('/analyze', uploadMedia.single('file'), async (req, res, next) => {
         verdict: detection.verdict,
         confidence: detection.confidence,
         label: result.label,
+        facesDetected: result.facesDetected ?? null,
+        framesAnalyzed: result.framesAnalyzed ?? null,
         riskLevel: detection.verdict === 'AI'
           ? (detection.confidence >= 80 ? 'High' : detection.confidence >= 60 ? 'Medium' : 'Low')
           : 'None',
